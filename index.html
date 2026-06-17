@@ -1,2 +1,219 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><title>init</title></head><body>init</body></html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 世界杯 · 对阵预测器</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#FBF9F1;color:#13233A;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;line-height:1.6}
+  .wrap{max-width:720px;margin:0 auto;padding:26px 18px 56px}
+  .title{font-size:25px;font-weight:700;letter-spacing:.5px;margin:0}
+  .sub{color:#6b7785;font-size:14px;margin-top:5px}
+  .panel{background:#fff;border:1px solid #ece5d8;border-radius:14px;padding:16px;margin-top:20px;
+    box-shadow:0 1px 3px rgba(19,35,58,.05)}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  select{flex:1;min-width:150px;padding:10px 12px;border:1px solid #d8cfbf;border-radius:9px;
+    background:#fff;color:#13233A;font-size:15px}
+  .swap{border:1px solid #d8cfbf;background:#fff;color:#6b7785;border-radius:9px;width:38px;height:40px;
+    font-size:16px;cursor:pointer;flex:0 0 auto}
+  .swap:hover{background:#f3eee3}
+  .go{padding:10px 22px;border:none;border-radius:9px;background:#9B2D20;color:#fff;font-size:15px;
+    font-weight:600;cursor:pointer;flex:0 0 auto}
+  .go:hover{background:#83271b}
+  .card{margin-top:16px}
+  .teams{display:grid;grid-template-columns:1fr auto 1fr;align-items:start;gap:10px;margin-bottom:14px}
+  .tn{font-size:17px;font-weight:600}
+  .te{font-size:11px;color:#9aa6b1;margin-top:1px}
+  .adv{font-size:31px;font-weight:700;line-height:1.35;margin-top:3px}
+  .advl{font-size:11px;color:#6b7785}
+  .vs{font-size:13px;color:#b0a999;padding-top:26px}
+  .bar{display:flex;height:9px;border-radius:5px;overflow:hidden;margin:2px 0 6px}
+  .wdl{display:flex;justify-content:space-between;font-size:12px;color:#6b7785;margin-bottom:14px}
+  .xg{text-align:center;font-size:13px;color:#6b7785;margin-bottom:14px}
+  .xg b{color:#13233A}
+  .scl{font-size:11px;color:#9aa6b1;margin-bottom:7px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:13px;padding:5px 11px;border-radius:8px;background:#f5f0e8;border:1px solid #ece5d8}
+  details{margin-top:18px;font-size:13px;color:#6b7785}
+  details summary{cursor:pointer;color:#9B2D20}
+  code{background:#f3eee3;padding:1px 5px;border-radius:4px;font-size:12px}
+  footer{margin-top:24px;color:#9aa6b1;font-size:12px;text-align:center;line-height:1.8}
+  @media(max-width:480px){.controls{flex-direction:column;align-items:stretch}.swap{width:100%;height:34px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="title">2026 世界杯 · 对阵预测器</h1>
+  <div class="sub">选择两支球队，点击预测 —— Elo + 攻防 + 泊松模型，结果实时在浏览器内计算。</div>
+
+  <div class="panel">
+    <div class="controls">
+      <select id="teamA"></select>
+      <button class="swap" id="swap" title="交换" aria-label="交换两队">&#8646;</button>
+      <select id="teamB"></select>
+      <button class="go" id="go">预测对阵</button>
+    </div>
+    <div class="card" id="result"></div>
+  </div>
+
+  <details>
+    <summary>模型说明</summary>
+    <p>预期进球 <code>xG = 1.32 · exp((攻击力−对方防守)/38 + (Elo差)/950)</code>，钳制在 0.15–4.2；
+    两队进球数按独立泊松分布，遍历比分网格得到 90&nbsp;分钟胜/平/负与最可能比分；
+    淘汰赛晋级概率 = 胜率 + 平局率 × 点球优势。每录入一场结果，双方 Elo 按 <code>K=24</code> 动态更新（零和、对称）。</p>
+  </details>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+/* ===================== 球队基础评级（赛前基线，一般不改） =====================
+   字段: t=英文ID(请勿改)  c=中文名  a=攻击  d=防守  e=赛前Elo  p=点球评级           */
+const BASE=[
+{t:"Spain",c:"西班牙",a:95.6,d:94.1,e:2129,p:85},
+{t:"Argentina",c:"阿根廷",a:91.9,d:86.3,e:2115,p:84.3},
+{t:"France",c:"法国",a:95.3,d:93.2,e:2084,p:82.7},
+{t:"England",c:"英格兰",a:92.2,d:92.9,e:2024,p:79.6},
+{t:"Portugal",c:"葡萄牙",a:91.6,d:89.5,e:1989,p:77.8},
+{t:"Colombia",c:"哥伦比亚",a:82.1,d:80.5,e:1982,p:77.5},
+{t:"Brazil",c:"巴西",a:92.4,d:84.7,e:1978,p:77.3},
+{t:"Netherlands",c:"荷兰",a:86.6,d:89.3,e:1944,p:75.5},
+{t:"Germany",c:"德国",a:86.5,d:86.4,e:1939,p:75.2},
+{t:"Norway",c:"挪威",a:88.3,d:81.5,e:1929,p:74.7},
+{t:"Croatia",c:"克罗地亚",a:80.9,d:84.1,e:1912,p:73.9},
+{t:"Japan",c:"日本",a:80.6,d:80.5,e:1910,p:73.8},
+{t:"Ecuador",c:"厄瓜多尔",a:81.1,d:80,e:1890,p:72.7},
+{t:"Mexico",c:"墨西哥",a:79.3,d:79.3,e:1881,p:72.3},
+{t:"Belgium",c:"比利时",a:84.1,d:87.4,e:1879,p:72.2},
+{t:"Uruguay",c:"乌拉圭",a:80.1,d:78.8,e:1870,p:71.7},
+{t:"Switzerland",c:"瑞士",a:80.6,d:83.8,e:1865,p:71.5},
+{t:"Türkiye",c:"土耳其",a:75.8,d:77.5,e:1849,p:70.6},
+{t:"Morocco",c:"摩洛哥",a:80.7,d:79.5,e:1840,p:70.2},
+{t:"Australia",c:"澳大利亚",a:76.9,d:77.3,e:1839,p:70.1},
+{t:"Senegal",c:"塞内加尔",a:82.7,d:80.3,e:1839,p:70.1},
+{t:"Austria",c:"奥地利",a:78.1,d:79.7,e:1830,p:69.7},
+{t:"Scotland",c:"苏格兰",a:76.9,d:77.9,e:1794,p:67.8},
+{t:"Korea Republic",c:"韩国",a:76.3,d:76.8,e:1786,p:67.4},
+{t:"Paraguay",c:"巴拉圭",a:75.8,d:75.8,e:1780,p:67.1},
+{t:"USA",c:"美国",a:80.3,d:78.5,e:1780,p:67.1},
+{t:"Algeria",c:"阿尔及利亚",a:80.7,d:76.6,e:1772,p:66.7},
+{t:"Canada",c:"加拿大",a:78.2,d:77.2,e:1767,p:66.4},
+{t:"IR Iran",c:"伊朗",a:74.8,d:76.6,e:1756,p:65.9},
+{t:"Sweden",c:"瑞典",a:79.3,d:78.1,e:1755,p:65.8},
+{t:"Panama",c:"巴拿马",a:71.8,d:76.8,e:1730,p:64.5},
+{t:"Uzbekistan",c:"乌兹别克斯坦",a:73.9,d:75.7,e:1714,p:63.7},
+{t:"Czechia",c:"捷克",a:77,d:78.1,e:1712,p:63.6},
+{t:"Egypt",c:"埃及",a:77.6,d:74.1,e:1711,p:63.5},
+{t:"Jordan",c:"约旦",a:72.1,d:73.7,e:1680,p:62},
+{t:"Congo DR",c:"刚果(金)",a:71.9,d:72.4,e:1652,p:60.5},
+{t:"Bosnia And Herzegovina",c:"波黑",a:72.7,d:73.1,e:1616,p:58.7},
+{t:"Cabo Verde",c:"佛得角",a:70.6,d:72.4,e:1606,p:58.2},
+{t:"Saudi Arabia",c:"沙特",a:71.8,d:71.5,e:1598,p:57.7},
+{t:"Iraq",c:"伊拉克",a:71.6,d:72.3,e:1592,p:57.4},
+{t:"Tunisia",c:"突尼斯",a:70.3,d:72.3,e:1585,p:57.1},
+{t:"New Zealand",c:"新西兰",a:71.7,d:72.3,e:1578,p:56.7},
+{t:"Haiti",c:"海地",a:75.1,d:70.3,e:1536,p:54.6},
+{t:"South Africa",c:"南非",a:72,d:68.9,e:1511,p:53.3},
+{t:"Ghana",c:"加纳",a:74.9,d:70.8,e:1510,p:53.2},
+{t:"Côte D'Ivoire",c:"科特迪瓦",a:78.5,d:73.4,e:1500,p:52.7},
+{t:"Curaçao",c:"库拉索",a:71.6,d:69.7,e:1500,p:52.7},
+{t:"Qatar",c:"卡塔尔",a:71,d:71,e:1447,p:50}
+];
+
+/* ===================== 已踢比赛结果（AI 每轮在此追加） =====================
+   每场一行: {date:"YYYY-MM-DD", a:"主队ID", b:"客队ID", gf:主队进球, ga:客队进球}
+   a/b 必须用上面 BASE 里的英文 t（如 "Cabo Verde" "IR Iran" "Korea Republic"）。
+   只加结果，不要改 BASE，也不要改下面的代码。                                       */
+const RESULTS=[
+{date:"2026-06-11", a:"Korea Republic", b:"Czechia", gf:2, ga:1},
+{date:"2026-06-11", a:"Mexico", b:"South Africa", gf:2, ga:0},
+{date:"2026-06-12", a:"Canada", b:"Bosnia And Herzegovina", gf:1, ga:1},
+{date:"2026-06-12", a:"USA", b:"Paraguay", gf:4, ga:1},
+{date:"2026-06-13", a:"Australia", b:"Türkiye", gf:2, ga:0},
+{date:"2026-06-13", a:"Brazil", b:"Morocco", gf:1, ga:1},
+{date:"2026-06-13", a:"Qatar", b:"Switzerland", gf:1, ga:1},
+{date:"2026-06-13", a:"Scotland", b:"Haiti", gf:1, ga:0},
+{date:"2026-06-14", a:"Côte D'Ivoire", b:"Ecuador", gf:1, ga:0},
+{date:"2026-06-14", a:"Germany", b:"Curaçao", gf:7, ga:1},
+{date:"2026-06-14", a:"Japan", b:"Netherlands", gf:2, ga:2},
+{date:"2026-06-14", a:"Sweden", b:"Tunisia", gf:5, ga:1},
+{date:"2026-06-15", a:"Belgium", b:"Egypt", gf:1, ga:1},
+{date:"2026-06-15", a:"Cabo Verde", b:"Spain", gf:0, ga:0},
+{date:"2026-06-15", a:"IR Iran", b:"New Zealand", gf:2, ga:2},
+{date:"2026-06-15", a:"Saudi Arabia", b:"Uruguay", gf:1, ga:1},
+{date:"2026-06-16", a:"Argentina", b:"Algeria", gf:3, ga:0},
+{date:"2026-06-16", a:"Austria", b:"Jordan", gf:3, ga:1},
+{date:"2026-06-16", a:"France", b:"Senegal", gf:3, ga:1},
+{date:"2026-06-16", a:"Norway", b:"Iraq", gf:4, ga:1}
+/* >>> AI 在这一行上方追加新比赛 <<< */
+];
+
+/* ===================== 引擎（请勿改动） ===================== */
+(function(){
+  function computeRatings(){
+    var R={}; BASE.forEach(function(t){R[t.t]={t:t.t,c:t.c,a:t.a,d:t.d,e:t.e,p:t.p};});
+    RESULTS.forEach(function(m){
+      var A=R[m.a], B=R[m.b]; if(!A||!B) return;
+      var expA=1/(1+Math.pow(10,-(A.e-B.e)/400));
+      var actA=m.gf>m.ga?1:(m.gf===m.ga?0.5:0);
+      var dE=24*(actA-expA);
+      A.e+=dE; B.e-=dE;
+    });
+    return R;
+  }
+  function fact(k){var f=1;for(var i=2;i<=k;i++)f*=i;return f;}
+  function pois(k,l){return Math.exp(-l)*Math.pow(l,k)/fact(k);}
+  function clamp(v){return Math.max(0.15,Math.min(4.2,v));}
+  function predict(a,b){
+    var xgA=clamp(Math.exp(Math.log(1.32)+((a.a-b.d)/38)+((a.e-b.e)/950)));
+    var xgB=clamp(Math.exp(Math.log(1.32)+((b.a-a.d)/38)+((b.e-a.e)/950)));
+    var w=0,d=0,L=0,cells=[];
+    for(var i=0;i<=8;i++)for(var j=0;j<=8;j++){var pr=pois(i,xgA)*pois(j,xgB);cells.push([i,j,pr]);if(i>j)w+=pr;else if(i===j)d+=pr;else L+=pr;}
+    cells.sort(function(x,y){return y[2]-x[2];});
+    var penA=1/(1+Math.exp(-(((a.e-b.e)/420)+((a.p-b.p)/9))));
+    return {xgA:xgA,xgB:xgB,w:w,d:d,L:L,advA:w+d*penA,top:cells.slice(0,3)};
+  }
+  function pc(v){return Math.round(v*100);}
+
+  var R=computeRatings();
+  var LIST=Object.keys(R).map(function(k){return R[k];}).sort(function(x,y){return y.e-x.e;});
+  var A=document.getElementById('teamA'),B=document.getElementById('teamB'),OUT=document.getElementById('result');
+  LIST.forEach(function(x){
+    var o=document.createElement('option');o.value=x.t;o.textContent=x.c+' · Elo '+Math.round(x.e);A.appendChild(o);
+    B.appendChild(o.cloneNode(true));
+  });
+  A.value=LIST[0].t; B.value=LIST[2].t;
+
+  function find(id){return R[id];}
+  function render(){
+    var a=find(A.value),b=find(B.value);
+    if(a===b){OUT.innerHTML='<p style="text-align:center;color:#6b7785;padding:10px 0">请选择两支不同的球队</p>';return;}
+    var r=predict(a,b),advA=pc(r.advA),advB=100-advA,cA="#1f7a5a",cB="#9B2D20",cD="#b0a999";
+    var bar='<div class="bar"><div style="width:'+pc(r.w)+'%;background:'+cA+'"></div><div style="width:'+pc(r.d)+'%;background:'+cD+'"></div><div style="width:'+pc(r.L)+'%;background:'+cB+'"></div></div>';
+    var chips=r.top.map(function(s){return '<span class="chip">'+a.c+' '+s[0]+'-'+s[1]+' '+b.c+' · '+pc(s[2])+'%</span>';}).join('');
+    OUT.innerHTML=
+      '<div class="teams">'
+      +'<div style="text-align:center"><div class="tn">'+a.c+'</div><div class="te">Elo '+Math.round(a.e)+'</div><div class="adv" style="color:'+cA+'">'+advA+'%</div><div class="advl">晋级</div></div>'
+      +'<div class="vs">vs</div>'
+      +'<div style="text-align:center"><div class="tn">'+b.c+'</div><div class="te">Elo '+Math.round(b.e)+'</div><div class="adv" style="color:'+cB+'">'+advB+'%</div><div class="advl">晋级</div></div>'
+      +'</div>'+bar
+      +'<div class="wdl"><span>'+a.c+'胜 '+pc(r.w)+'%</span><span>平 '+pc(r.d)+'%</span><span>'+b.c+'胜 '+pc(r.L)+'%</span></div>'
+      +'<div class="xg">预期进球 <b>'+r.xgA.toFixed(2)+' - '+r.xgB.toFixed(2)+'</b></div>'
+      +'<div class="scl">最可能比分</div><div class="chips">'+chips+'</div>';
+  }
+  document.getElementById('go').addEventListener('click',render);
+  document.getElementById('swap').addEventListener('click',function(){var t=A.value;A.value=B.value;B.value=t;render();});
+  A.addEventListener('change',render); B.addEventListener('change',render);
+  render();
+
+  var dates=RESULTS.map(function(m){return m.date;}).sort();
+  document.getElementById('foot').innerHTML=
+    '数据截至 '+dates[dates.length-1]+' · 已录入 '+RESULTS.length+' 场结果<br>'
+    +'模型：Elo + 攻防 + 泊松 | 评级来源：FIFA / Transfermarkt / World Football Elo<br>'
+    +'预测为概率参考，非投注建议。';
+})();
+</script>
+</body>
+</html>
