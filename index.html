@@ -48,6 +48,7 @@
   .wdl span:last-child{text-align:right}
   .xg{text-align:center;margin:22px 0 18px;color:var(--muted);font-size:15px}
   .xg b{color:var(--ink)}
+  .pen-note{text-align:center;margin:-10px 0 18px;color:#9a9183;font-size:12px}
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
@@ -100,6 +101,8 @@
         <select id="teamA" aria-label="第一支球队"></select>
         <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
           <option value="dc">预测方式：全量拟合 Dixon-Coles（默认）</option>
+          <option value="dcNeutral">预测方式：全量拟合 DC · 中性点球</option>
+          <option value="dcHistoryPen">预测方式：全量拟合 DC · 历史点球实验</option>
           <option value="fitted">预测方式：全量拟合 Poisson</option>
           <option value="current">预测方式：原始经验参数</option>
           <option value="elo">预测方式：Elo-only</option>
@@ -119,7 +122,7 @@
   <details>
     <summary>模型说明</summary>
     <div class="explain">
-      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
+      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。新增的中性点球和历史点球是实验方式；历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
     </div>
   </details>
   <footer id="foot"></footer>
@@ -127,7 +130,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-18-wide-ui";
+const APP_VERSION = "2026-06-18-penalty-exp";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -221,6 +224,8 @@ const PARAMS = {
   elo:{name:"Elo-only", alpha:Math.log(1.28), betaAD:0, betaElo:1/850, k:24, adK:0, minLambda:0.08, maxLambda:3.8, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9},
   ad:{name:"Attack/Defense-only", alpha:Math.log(1.28), betaAD:1/38, betaElo:0, k:0, adK:0.35, minLambda:0.08, maxLambda:3.8, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9}
 };
+PARAMS.dcNeutral={...PARAMS.dc,name:"全量拟合 DC · 中性点球",penaltyMode:"neutral"};
+PARAMS.dcHistoryPen={...PARAMS.dc,name:"全量拟合 DC · 历史点球实验",penaltyMode:"history"};
 
 const MODEL_SNAPSHOT = {
   "generatedAt": "2026-06-17T17:23:06.126Z",
@@ -649,6 +654,453 @@ const MODEL_SNAPSHOT = {
   }
 };
 
+const PENALTY_HISTORY = {
+  "source": "https://raw.githubusercontent.com/martj42/international_results/master/shootouts.csv",
+  "generatedAt": "2026-06-18T14:49:04.010Z",
+  "method": "Penalty Elo fitted by rolling shootout log loss over all shootouts. Rating displayed on 35-65 scale from final penalty Elo.",
+  "best": {
+    "K": 4,
+    "scale": 800,
+    "n": 678,
+    "logLoss": 0.693171,
+    "brier": 0.250012
+  },
+  "teams": {
+    "Spain": {
+      "n": 14,
+      "w": 7,
+      "l": 7,
+      "r": 50,
+      "e": 1499.9,
+      "prior": 85,
+      "d": -35
+    },
+    "Argentina": {
+      "n": 23,
+      "w": 15,
+      "l": 8,
+      "r": 51.1,
+      "e": 1513.5,
+      "prior": 84.3,
+      "d": -33.2
+    },
+    "France": {
+      "n": 11,
+      "w": 5,
+      "l": 6,
+      "r": 49.8,
+      "e": 1498,
+      "prior": 82.7,
+      "d": -32.9
+    },
+    "England": {
+      "n": 12,
+      "w": 4,
+      "l": 8,
+      "r": 49.4,
+      "e": 1492.2,
+      "prior": 79.6,
+      "d": -30.2
+    },
+    "Portugal": {
+      "n": 8,
+      "w": 5,
+      "l": 3,
+      "r": 50.3,
+      "e": 1503.9,
+      "prior": 77.8,
+      "d": -27.5
+    },
+    "Colombia": {
+      "n": 12,
+      "w": 7,
+      "l": 5,
+      "r": 50.3,
+      "e": 1503.9,
+      "prior": 77.5,
+      "d": -27.2
+    },
+    "Brazil": {
+      "n": 16,
+      "w": 9,
+      "l": 7,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 77.3,
+      "d": -27
+    },
+    "Netherlands": {
+      "n": 10,
+      "w": 2,
+      "l": 8,
+      "r": 49,
+      "e": 1488.2,
+      "prior": 75.5,
+      "d": -26.5
+    },
+    "Germany": {
+      "n": 8,
+      "w": 6,
+      "l": 2,
+      "r": 50.7,
+      "e": 1508,
+      "prior": 75.2,
+      "d": -24.5
+    },
+    "Norway": {
+      "n": 0,
+      "w": 0,
+      "l": 0,
+      "r": 50,
+      "e": 1500,
+      "prior": 74.7,
+      "d": -24.7
+    },
+    "Croatia": {
+      "n": 11,
+      "w": 7,
+      "l": 4,
+      "r": 50.5,
+      "e": 1505.9,
+      "prior": 73.9,
+      "d": -23.4
+    },
+    "Japan": {
+      "n": 12,
+      "w": 5,
+      "l": 7,
+      "r": 49.7,
+      "e": 1496.1,
+      "prior": 73.8,
+      "d": -24.1
+    },
+    "Ecuador": {
+      "n": 4,
+      "w": 2,
+      "l": 2,
+      "r": 50,
+      "e": 1500,
+      "prior": 72.7,
+      "d": -22.7
+    },
+    "Mexico": {
+      "n": 14,
+      "w": 7,
+      "l": 7,
+      "r": 50,
+      "e": 1500.2,
+      "prior": 72.3,
+      "d": -22.3
+    },
+    "Belgium": {
+      "n": 2,
+      "w": 2,
+      "l": 0,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 72.2,
+      "d": -21.9
+    },
+    "Uruguay": {
+      "n": 17,
+      "w": 9,
+      "l": 8,
+      "r": 50.2,
+      "e": 1502,
+      "prior": 71.7,
+      "d": -21.5
+    },
+    "Switzerland": {
+      "n": 8,
+      "w": 2,
+      "l": 6,
+      "r": 49.3,
+      "e": 1492,
+      "prior": 71.5,
+      "d": -22.2
+    },
+    "Türkiye": {
+      "n": 0,
+      "w": 0,
+      "l": 0,
+      "r": 50,
+      "e": 1500,
+      "prior": 70.6,
+      "d": -20.6
+    },
+    "Morocco": {
+      "n": 14,
+      "w": 6,
+      "l": 8,
+      "r": 49.7,
+      "e": 1496.1,
+      "prior": 70.2,
+      "d": -20.5
+    },
+    "Australia": {
+      "n": 8,
+      "w": 5,
+      "l": 3,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 70.1,
+      "d": -19.8
+    },
+    "Senegal": {
+      "n": 21,
+      "w": 11,
+      "l": 10,
+      "r": 50.2,
+      "e": 1502.2,
+      "prior": 70.1,
+      "d": -19.9
+    },
+    "Austria": {
+      "n": 2,
+      "w": 0,
+      "l": 2,
+      "r": 49.7,
+      "e": 1496,
+      "prior": 69.7,
+      "d": -20
+    },
+    "Scotland": {
+      "n": 2,
+      "w": 2,
+      "l": 0,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 67.8,
+      "d": -17.5
+    },
+    "Korea Republic": {
+      "n": 25,
+      "w": 15,
+      "l": 10,
+      "r": 50.8,
+      "e": 1509.8,
+      "prior": 67.4,
+      "d": -16.6
+    },
+    "Paraguay": {
+      "n": 13,
+      "w": 6,
+      "l": 7,
+      "r": 49.8,
+      "e": 1498.1,
+      "prior": 67.1,
+      "d": -17.3
+    },
+    "USA": {
+      "n": 10,
+      "w": 6,
+      "l": 4,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 67.1,
+      "d": -16.8
+    },
+    "Algeria": {
+      "n": 15,
+      "w": 7,
+      "l": 8,
+      "r": 49.8,
+      "e": 1498.1,
+      "prior": 66.7,
+      "d": -16.9
+    },
+    "Canada": {
+      "n": 8,
+      "w": 3,
+      "l": 5,
+      "r": 49.7,
+      "e": 1496,
+      "prior": 66.4,
+      "d": -16.7
+    },
+    "IR Iran": {
+      "n": 23,
+      "w": 10,
+      "l": 13,
+      "r": 49.5,
+      "e": 1494.3,
+      "prior": 65.9,
+      "d": -16.4
+    },
+    "Sweden": {
+      "n": 6,
+      "w": 4,
+      "l": 2,
+      "r": 50.3,
+      "e": 1503.9,
+      "prior": 65.8,
+      "d": -15.5
+    },
+    "Panama": {
+      "n": 7,
+      "w": 5,
+      "l": 2,
+      "r": 50.5,
+      "e": 1506,
+      "prior": 64.5,
+      "d": -14
+    },
+    "Uzbekistan": {
+      "n": 5,
+      "w": 2,
+      "l": 3,
+      "r": 49.8,
+      "e": 1498,
+      "prior": 63.7,
+      "d": -13.9
+    },
+    "Czechia": {
+      "n": 4,
+      "w": 3,
+      "l": 1,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 63.6,
+      "d": -13.3
+    },
+    "Egypt": {
+      "n": 26,
+      "w": 15,
+      "l": 11,
+      "r": 50.6,
+      "e": 1507.7,
+      "prior": 63.5,
+      "d": -12.9
+    },
+    "Jordan": {
+      "n": 3,
+      "w": 0,
+      "l": 3,
+      "r": 49.5,
+      "e": 1494,
+      "prior": 62,
+      "d": -12.5
+    },
+    "Congo DR": {
+      "n": 8,
+      "w": 5,
+      "l": 3,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 60.5,
+      "d": -10.2
+    },
+    "Bosnia And Herzegovina": {
+      "n": 4,
+      "w": 3,
+      "l": 1,
+      "r": 50.3,
+      "e": 1504,
+      "prior": 58.7,
+      "d": -8.4
+    },
+    "Cabo Verde": {
+      "n": 5,
+      "w": 2,
+      "l": 3,
+      "r": 49.8,
+      "e": 1498,
+      "prior": 58.2,
+      "d": -8.4
+    },
+    "Saudi Arabia": {
+      "n": 9,
+      "w": 7,
+      "l": 2,
+      "r": 50.8,
+      "e": 1509.8,
+      "prior": 57.7,
+      "d": -6.9
+    },
+    "Iraq": {
+      "n": 15,
+      "w": 11,
+      "l": 4,
+      "r": 51.1,
+      "e": 1513.7,
+      "prior": 57.4,
+      "d": -6.3
+    },
+    "Tunisia": {
+      "n": 13,
+      "w": 7,
+      "l": 6,
+      "r": 50.2,
+      "e": 1501.9,
+      "prior": 57.1,
+      "d": -6.9
+    },
+    "New Zealand": {
+      "n": 4,
+      "w": 1,
+      "l": 3,
+      "r": 49.7,
+      "e": 1496,
+      "prior": 56.7,
+      "d": -7
+    },
+    "Haiti": {
+      "n": 2,
+      "w": 1,
+      "l": 1,
+      "r": 50,
+      "e": 1500,
+      "prior": 54.6,
+      "d": -4.6
+    },
+    "South Africa": {
+      "n": 28,
+      "w": 13,
+      "l": 15,
+      "r": 49.7,
+      "e": 1496.1,
+      "prior": 53.3,
+      "d": -3.6
+    },
+    "Ghana": {
+      "n": 13,
+      "w": 5,
+      "l": 8,
+      "r": 49.5,
+      "e": 1494.1,
+      "prior": 53.2,
+      "d": -3.7
+    },
+    "Côte D'Ivoire": {
+      "n": 0,
+      "w": 0,
+      "l": 0,
+      "r": 50,
+      "e": 1500,
+      "prior": 52.7,
+      "d": -2.7
+    },
+    "Curaçao": {
+      "n": 2,
+      "w": 0,
+      "l": 2,
+      "r": 49.7,
+      "e": 1496,
+      "prior": 52.7,
+      "d": -3
+    },
+    "Qatar": {
+      "n": 9,
+      "w": 5,
+      "l": 4,
+      "r": 50.2,
+      "e": 1502.1,
+      "prior": 50,
+      "d": 0.2
+    }
+  }
+};
+
 let historicalMatches = null;
 let lastReports = null;
 
@@ -708,6 +1160,24 @@ function tauDC(i,j,la,lb,rho){
   if(i===1&&j===1) return Math.max(0.001,1-rho);
   return 1;
 }
+function applyPenaltyMode(state,modelKey){
+  const mode=(PARAMS[modelKey]||{}).penaltyMode||"prior";
+  Object.values(state).forEach(t=>{
+    if(mode==="neutral") t.penalty=50;
+    if(mode==="history") t.penalty=(PENALTY_HISTORY.teams[t.id]?.r ?? 50);
+  });
+  return state;
+}
+function penaltyProbability(a,b,p){
+  if(p.penaltyMode==="neutral") return 0.5;
+  if(p.penaltyMode==="history") return 1/(1+Math.exp(-((a.penalty-b.penalty)/(p.penRatingScale||12))));
+  return 1/(1+Math.exp(-(((a.elo-b.elo)/(p.penEloScale||420))+((a.penalty-b.penalty)/(p.penRatingScale||9)))));
+}
+function penaltyModeLabel(p){
+  if(p.penaltyMode==="neutral") return "平局后按 50/50 处理";
+  if(p.penaltyMode==="history") return `平局后按历史点球实验值处理：${PENALTY_HISTORY.best.n} 场点球大战拟合`;
+  return "平局后按原点球/加时先验处理";
+}
 function scoreMatrix(a,b,p,opts={}){
   const [la,lb]=lambdas(a,b,p,opts);
   let cells=[],sum=0,w=0,d=0,l=0,over15=0,over25=0,over35=0,p00=0,p11=0;
@@ -727,7 +1197,7 @@ function scoreMatrix(a,b,p,opts={}){
     if(c.i===1&&c.j===1)p11=c.pr;
   });
   cells.sort((x,y)=>y.pr-x.pr);
-  const penA=1/(1+Math.exp(-(((a.elo-b.elo)/(p.penEloScale||420))+((a.penalty-b.penalty)/(p.penRatingScale||9)))));
+  const penA=penaltyProbability(a,b,p);
   return {la,lb,w,d,l,advA:w+d*penA,penA,over15,over25,over35,p00,p11,cells};
 }
 function updateState(state,aId,bId,gf,ga,p,opts={}){
@@ -830,7 +1300,8 @@ function renderPredict(ctx=null){
   const modelKey=(modelSelect&&PARAMS[modelSelect.value])?modelSelect.value:"dc";
   if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
   const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
-  const state=(modelKey==="dc"||modelKey==="fitted")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  state=applyPenaltyMode(state,modelKey);
   let a=cloneTeam(state[document.getElementById("teamA").value]), b=cloneTeam(state[document.getElementById("teamB").value]);
   const out=document.getElementById("result");
   if(!a||!b||a.id===b.id){out.innerHTML='<p class="note">请选择两支不同球队。</p>';return;}
@@ -854,6 +1325,7 @@ function renderPredict(ctx=null){
     <div class="bar"><div style="width:${pc(r.w)};background:var(--good)"></div><div style="width:${pc(r.d)};background:#b8ad9b"></div><div style="width:${pc(r.l)};background:var(--red)"></div></div>
     <div class="wdl"><span>${a.c}胜 ${pc(r.w,0)}</span><span>平 ${pc(r.d,0)}</span><span>${b.c}胜 ${pc(r.l,0)}</span></div>
     <div class="xg">预期进球 <b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b></div>
+    <div class="pen-note">${penaltyModeLabel(p)}</div>
     <div class="score-title">最可能比分</div><div class="chips">${top}</div>`;
 }
 async function renderPredictWithHistory(){
