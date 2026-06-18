@@ -6,188 +6,108 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>2026 世界杯预测模型实验室</title>
+<title>2026 世界杯 · 对阵预测器</title>
 <style>
   *{box-sizing:border-box}
   :root{
     --paper:#FBF9F1;--paper2:#F5F0E8;--ink:#13233A;--muted:#6b7785;
-    --line:#e7dece;--red:#9B2D20;--gold:#C8A45C;--good:#596f62;--card:#fffefb;
+    --line:#e7dece;--red:#9B2D20;--gold:#C8A45C;--good:#5c7b69;--card:#fffefb;
   }
-  body{margin:0;background:var(--paper);color:var(--ink);
+  body{margin:0;background:linear-gradient(180deg,var(--paper) 0%,#fffaf4 100%);color:var(--ink);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.55}
-  .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 64px}
-  header{display:flex;gap:18px;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
-  h1{font-size:28px;line-height:1.2;margin:0 0 7px;font-weight:760;letter-spacing:0}
-  .sub{color:var(--muted);font-size:14px;max-width:820px}
-  .badge{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--paper2);
-    color:var(--red);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:650;white-space:nowrap}
-  .grid{display:grid;grid-template-columns:minmax(320px,430px) 1fr;gap:16px;align-items:start}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;
-    box-shadow:0 1px 3px rgba(19,35,58,.04)}
-  .panel h2{font-size:17px;margin:0 0 12px}
-  .panel h3{font-size:14px;margin:18px 0 8px;color:var(--red)}
-  .controls{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+  .wrap{max-width:560px;margin:0 auto;padding:42px 24px 38px}
+  header{margin-bottom:28px}
+  h1{font-size:32px;line-height:1.2;margin:0 0 12px;font-weight:780;letter-spacing:0}
+  .sub{color:var(--muted);font-size:15px;max-width:480px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:22px 22px 20px;
+    box-shadow:0 3px 14px rgba(19,35,58,.06)}
+  .controls{display:grid;gap:12px;align-items:center}
   select,input,button{font:inherit}
-  select,input{width:100%;padding:10px 11px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--ink)}
-  .swap{height:40px;width:42px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--muted);cursor:pointer}
-  .btnrow{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
-  button.primary,button.secondary{border:0;border-radius:8px;padding:10px 13px;cursor:pointer;font-weight:680}
+  select,input{width:100%;padding:14px 16px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--ink);
+    min-height:58px;font-size:17px}
+  .model-choice{color:var(--red);font-weight:680;text-align:center;text-align-last:center;background:var(--paper2)}
+  .btnrow{display:block;margin-top:14px}
+  button.primary,button.secondary{border:0;border-radius:8px;padding:13px 15px;cursor:pointer;font-weight:720;width:100%;font-size:17px}
   button.primary{background:var(--red);color:#fff}
   button.secondary{background:var(--paper2);color:var(--ink);border:1px solid var(--line)}
   button:disabled{opacity:.55;cursor:wait}
   .note{font-size:12px;color:var(--muted);margin-top:9px}
-  .result{margin-top:14px}
-  .teams{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;margin:6px 0 12px}
+  .result{margin-top:22px}
+  .teams{display:grid;grid-template-columns:1fr 34px 1fr;gap:8px;align-items:start;margin:6px 0 14px}
   .team{text-align:center}
-  .team .name{font-weight:760;font-size:18px}
-  .team .elo{font-size:12px;color:var(--muted)}
-  .adv{font-size:32px;font-weight:800;line-height:1.2;margin-top:4px}
-  .vs{font-size:12px;color:#aa9f8e;padding-top:34px}
-  .bar{display:flex;height:9px;border-radius:8px;overflow:hidden;margin:10px 0 8px;background:var(--paper2)}
-  .wdl{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
-  .xg{text-align:center;margin:14px 0;color:var(--muted);font-size:13px}
+  .team .name{font-weight:760;font-size:20px;line-height:1.25}
+  .team .elo{font-size:13px;color:var(--muted);margin-top:4px}
+  .adv{font-size:42px;font-weight:820;line-height:1.1;margin-top:8px}
+  .tag{font-size:13px;color:var(--muted);margin-top:4px}
+  .vs{font-size:13px;color:#aa9f8e;padding-top:40px;text-align:center}
+  .bar{display:flex;height:10px;border-radius:8px;overflow:hidden;margin:18px 0 8px;background:var(--paper2)}
+  .wdl{display:flex;justify-content:space-between;color:var(--muted);font-size:13px;gap:8px}
+  .wdl span:nth-child(2){text-align:center}
+  .wdl span:last-child{text-align:right}
+  .xg{text-align:center;margin:22px 0 18px;color:var(--muted);font-size:15px}
   .xg b{color:var(--ink)}
-  .chips{display:flex;flex-wrap:wrap;gap:7px}
-  .chip{font-size:12px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:var(--paper2)}
-  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
-  .tab{border:1px solid var(--line);background:var(--paper2);padding:8px 11px;border-radius:8px;cursor:pointer;font-size:13px}
-  .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-  .view{display:none}.view.active{display:block}
+  .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
+  .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   table{border-collapse:collapse;width:100%;font-size:12px;background:#fff}
   th,td{border:1px solid var(--line);padding:7px 8px;text-align:right;vertical-align:top}
   th{background:var(--ink);color:#fff;font-weight:650}
   td:first-child,th:first-child{text-align:left}
-  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .kv{display:grid;grid-template-columns:190px 1fr;gap:0;border:1px solid var(--line);border-bottom:0;font-size:12px}
-  .kv div{padding:7px 9px;border-bottom:1px solid var(--line)}
-  .kv div:nth-child(odd){background:var(--paper2);font-weight:650}
   .status{font-size:13px;color:var(--muted);min-height:22px;margin-top:10px}
   .warn{border-left:4px solid var(--gold);background:#fff8e7;padding:10px 12px;border-radius:8px;color:#5f4b1d;font-size:13px}
   .good{color:var(--good);font-weight:700}.bad{color:var(--red);font-weight:700}
   .mono{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}
-  footer{margin-top:20px;text-align:center;color:#98a1aa;font-size:12px}
-  @media(max-width:900px){.grid,.twocol{grid-template-columns:1fr}header{display:block}.badge{margin-top:12px}.controls{grid-template-columns:1fr}.swap{width:100%}}
+  details{margin-top:24px;color:var(--red);font-size:14px}
+  summary{cursor:pointer;font-weight:680}
+  .explain{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.75}
+  footer{margin-top:34px;text-align:center;color:#98a1aa;font-size:12px}
+  @media(max-width:420px){
+    .wrap{padding:36px 18px 34px}
+    h1{font-size:30px}
+    .panel{padding:20px 16px 18px}
+    .chip{font-size:13px;padding:9px 10px}
+    .wdl{font-size:12px}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div>
-      <h1>2026 世界杯预测模型实验室</h1>
-      <div class="sub">现有模型的系统升级版：先审计，再回测，再拟合参数，最后用 Dixon-Coles 修正低比分。页面不使用博彩赔率、Polymarket 或市场投票作为模型输入。</div>
-    </div>
-    <div class="badge">No-market model · rolling backtest · Dixon-Coles</div>
+    <h1>2026 世界杯 · 对阵预测器</h1>
+    <div class="sub">选择两支球队和预测方式，点击预测。结果在本机浏览器内实时计算，不使用博彩赔率或市场投票。</div>
   </header>
 
-  <div class="grid">
-    <section class="panel">
-      <h2>单场预测</h2>
-      <div class="controls">
-        <select id="teamA"></select>
-        <button class="swap" id="swap" title="交换球队" aria-label="交换球队">⇄</button>
-        <select id="teamB"></select>
-      </div>
-      <div class="btnrow">
-        <select id="modelChoice" style="max-width:230px">
-          <option value="dc">全量拟合 Dixon-Coles</option>
-          <option value="fitted">全量拟合普通 Poisson</option>
-          <option value="current">原始经验参数</option>
-          <option value="elo">Elo-only</option>
-          <option value="ad">Attack/Defense-only</option>
-        </select>
-        <button class="primary" id="go">预测</button>
-      </div>
-      <div class="note">预测使用当前页面内的球队基础值 + 已录入赛果滚动更新；市场赔率只可作外部对照，不进入计算。</div>
-      <div class="result" id="result"></div>
-    </section>
+  <section class="panel">
+    <div class="controls">
+      <select id="teamA" aria-label="第一支球队"></select>
+      <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
+        <option value="dc">预测方式：全量拟合 Dixon-Coles</option>
+        <option value="fitted">预测方式：全量拟合 Poisson</option>
+        <option value="current">预测方式：原始经验参数</option>
+        <option value="elo">预测方式：Elo-only</option>
+        <option value="ad">预测方式：攻防-only</option>
+      </select>
+      <select id="teamB" aria-label="第二支球队"></select>
+    </div>
+    <div class="btnrow">
+      <button class="primary" id="go">预测对阵</button>
+    </div>
+    <div class="result" id="result"></div>
+  </section>
 
-    <section class="panel">
-      <div class="tabs" id="tabs">
-        <button class="tab active" data-view="audit">模型审计</button>
-        <button class="tab" data-view="backtest">回测与拟合</button>
-        <button class="tab" data-view="metrics">指标报告</button>
-        <button class="tab" data-view="params">参数表</button>
-        <button class="tab" data-view="sources">数据来源</button>
-      </div>
-
-      <div class="view active" id="view-audit">
-        <h2>当前模型审计</h2>
-        <div class="warn">本页先不引入 xT、VAEP、tracking、风格克制等高成本模块。升级重点是：滚动回测、校准、参数拟合、Dixon-Coles 低比分修正。</div>
-        <h3>真正进入单场预测的字段</h3>
-        <div class="kv" id="auditKv"></div>
-        <h3>字段用途判定</h3>
-        <table id="fieldTable"></table>
-      </div>
-
-      <div class="view" id="view-backtest">
-        <h2>Rolling Backtest</h2>
-        <div class="twocol">
-          <div>
-            <label>开始日期</label>
-            <input id="btStart" value="2010-01-01">
-          </div>
-          <div>
-            <label>结束日期</label>
-            <input id="btEnd" value="2025-12-31">
-          </div>
-          <div>
-            <label>赛事筛选</label>
-            <select id="btFilter">
-              <option value="all">全部国家队比赛</option>
-              <option value="worldcup">世界杯正赛</option>
-              <option value="continental">洲际杯正赛</option>
-              <option value="wcq">世界杯预选赛</option>
-              <option value="qualifier">所有预选赛</option>
-              <option value="friendly">友谊赛</option>
-            </select>
-          </div>
-          <div>
-            <label>最大评估场次</label>
-            <input id="btLimit" value="9000">
-          </div>
-        </div>
-        <div class="btnrow">
-          <button class="primary" id="loadData">加载历史数据</button>
-          <button class="secondary" id="runBacktest">运行模型对比</button>
-          <button class="secondary" id="fitParams">快速参数试探</button>
-        </div>
-        <div class="status" id="btStatus">尚未加载历史数据。</div>
-      </div>
-
-      <div class="view" id="view-metrics">
-        <h2>模型版本对比</h2>
-        <div id="metricsOut" class="status">运行回测后显示。</div>
-        <h3>校准分桶</h3>
-        <div id="calibrationOut" class="status">运行回测后显示。</div>
-        <h3>赛事类型与 Elo 差分桶</h3>
-        <div id="sliceOut" class="status">运行回测后显示。</div>
-      </div>
-
-      <div class="view" id="view-params">
-        <h2>集中参数管理</h2>
-        <div id="paramsOut"></div>
-      </div>
-
-      <div class="view" id="view-sources">
-        <h2>数据来源与缺口</h2>
-        <table>
-          <tr><th>数据层</th><th>来源</th><th>当前状态</th><th>用途</th></tr>
-          <tr><td>历史国家队赛果</td><td>martj42 / international_results results.csv</td><td>在线加载；覆盖大量 1872 至今比赛</td><td>滚动回测、参数拟合、Elo/攻防更新</td></tr>
-          <tr><td>当前 48 队初始强度</td><td>原工作簿/World Football Elo/FIFA/Transfermarkt 整理值</td><td>内嵌在页面 BASE</td><td>2026 单场预测初始值</td></tr>
-          <tr><td>2026 已录入赛果</td><td>World Football Elo latest.tsv / FIFA 赛果核对</td><td>内嵌 20 场；可手动追加</td><td>当前评级滚动更新</td></tr>
-          <tr><td>xG/xGA</td><td>StatsBomb/Wyscout 等事件数据</td><td>未接入；不伪造</td><td>第三轮增强项</td></tr>
-          <tr><td>阵容/伤停</td><td>FIFA 官方名单、Transfermarkt、新闻源</td><td>未结构化接入</td><td>第二轮增强项，只作修正项</td></tr>
-          <tr><td>市场赔率/Polymarket</td><td>不使用</td><td>禁止作为模型输入</td><td>最多外部 sanity check</td></tr>
-        </table>
-      </div>
-    </section>
-  </div>
+  <details>
+    <summary>模型说明</summary>
+    <div class="explain">
+      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
+    </div>
+  </details>
   <footer id="foot"></footer>
 </div>
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-18-fix2";
+const APP_VERSION = "2026-06-18-lite-ui";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -904,18 +824,17 @@ function renderPredict(ctx=null){
   }
   const r=scoreMatrix(a,b,p,{neutral:true,importance:1});
   const advA=r.advA, advB=1-advA;
-  const top=r.cells.slice(0,5).map(s=>`<span class="chip">${a.c} ${s.i}-${s.j} ${b.c} · ${pc(s.pr,1)}</span>`).join("");
+  const top=r.cells.slice(0,10).map(s=>`<span class="chip">${a.c} ${s.i}-${s.j} ${b.c} · ${pc(s.pr,1)}</span>`).join("");
   out.innerHTML=`
     <div class="teams">
-      <div class="team"><div class="name">${a.c}</div><div class="elo">Elo ${Math.round(a.elo)} · ${a.id}</div><div class="adv" style="color:var(--good)">${pc(advA,0)}</div><div class="note">淘汰晋级</div></div>
+      <div class="team"><div class="name">${a.c}</div><div class="elo">Elo ${Math.round(a.elo)}</div><div class="adv" style="color:var(--good)">${pc(advA,0)}</div><div class="tag">晋级</div></div>
       <div class="vs">vs</div>
-      <div class="team"><div class="name">${b.c}</div><div class="elo">Elo ${Math.round(b.elo)} · ${b.id}</div><div class="adv" style="color:var(--red)">${pc(advB,0)}</div><div class="note">淘汰晋级</div></div>
+      <div class="team"><div class="name">${b.c}</div><div class="elo">Elo ${Math.round(b.elo)}</div><div class="adv" style="color:var(--red)">${pc(advB,0)}</div><div class="tag">晋级</div></div>
     </div>
     <div class="bar"><div style="width:${pc(r.w)};background:var(--good)"></div><div style="width:${pc(r.d)};background:#b8ad9b"></div><div style="width:${pc(r.l)};background:var(--red)"></div></div>
-    <div class="wdl"><span>${a.c} 90分钟胜 ${pc(r.w,0)}</span><span>平 ${pc(r.d,0)}</span><span>${b.c} 90分钟胜 ${pc(r.l,0)}</span></div>
-    <div class="xg">预期进球 <b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b> · 点球边 ${a.c} ${pc(r.penA,0)}</div>
-    <div class="note">最可能比分</div><div class="chips">${top}</div>
-    ${contextHtml(ctx,a,b)}`;
+    <div class="wdl"><span>${a.c}胜 ${pc(r.w,0)}</span><span>平 ${pc(r.d,0)}</span><span>${b.c}胜 ${pc(r.l,0)}</span></div>
+    <div class="xg">预期进球 <b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b></div>
+    <div class="score-title">最可能比分</div><div class="chips">${top}</div>`;
 }
 async function renderPredictWithHistory(){
   const out=document.getElementById("result");
@@ -966,11 +885,11 @@ function parseResultsCsv(text){
 }
 async function loadHistoricalData(){
   const status=document.getElementById("btStatus");
-  status.textContent="正在从 GitHub raw 加载国家队历史赛果...";
+  if(status) status.textContent="正在从 GitHub raw 加载国家队历史赛果...";
   const res=await fetch(DATA_URL,{cache:"force-cache"});
   if(!res.ok) throw new Error("历史数据加载失败: HTTP "+res.status);
   historicalMatches=parseResultsCsv(await res.text());
-  status.textContent=`已加载 ${historicalMatches.length.toLocaleString()} 场国家队比赛。数据源不含 xG、阵容、伤停。`;
+  if(status) status.textContent=`已加载 ${historicalMatches.length.toLocaleString()} 场国家队比赛。数据源不含 xG、阵容、伤停。`;
 }
 
 function shouldEval(m,start,end,filter){
@@ -1084,6 +1003,7 @@ function renderReports(){
     "<div class='twocol'><div>"+table(["赛事类型","场次","Log Loss"],catRows)+"</div><div>"+table(["Elo差区间","场次","Log Loss"],eloRows)+"</div></div><h3>已知大洲/区域对阵 Top10</h3>"+table(["区域组合","场次","Log Loss"],regRows);
 }
 function renderAudit(){
+  if(!document.getElementById("auditKv")||!document.getElementById("fieldTable")) return;
   const kv=[
     ["进入预测", "Elo、Attack、Defense、Penalty、已录入赛果、模型参数"],
     ["仅展示", "中文队名、区域标签、数据来源说明、部分 UI 文案"],
@@ -1106,6 +1026,7 @@ function renderAudit(){
   ]);
 }
 function renderParams(){
+  if(!document.getElementById("paramsOut")) return;
   const rows=Object.entries(PARAMS).map(([k,p])=>[p.name,k,Math.exp(p.alpha).toFixed(3),p.betaAD.toFixed(6),p.betaElo.toFixed(6),p.k,p.adK,p.minLambda,p.maxLambda,p.scoreMax,p.rho,p.penEloScale,p.penRatingScale]);
   document.getElementById("paramsOut").innerHTML=table(["模型","key","base_goal_rate","betaAD","betaElo","Elo K","AD K","xG下限","xG上限","比分截断","DC rho","点球Elo尺度","点球评级尺度"],rows);
 }
@@ -1119,24 +1040,15 @@ function init(){
     B.appendChild(o.cloneNode(true));
   });
   A.value="Spain";B.value="France";document.getElementById("modelChoice").value="dc";
-  renderPredict();renderAudit();renderParams();
+  renderPredict();
   document.getElementById("go").onclick=()=>renderPredict();
-  document.getElementById("swap").onclick=()=>{const t=A.value;A.value=B.value;B.value=t;renderPredict();};
   A.onchange=()=>renderPredict();
   B.onchange=()=>renderPredict();
   document.getElementById("modelChoice").onchange=()=>renderPredict();
-  document.querySelectorAll(".tab").forEach(btn=>btn.onclick=()=>{
-    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-    document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
-    btn.classList.add("active");document.getElementById("view-"+btn.dataset.view).classList.add("active");
-  });
-  document.getElementById("loadData").onclick=async()=>{try{await loadHistoricalData();}catch(e){document.getElementById("btStatus").innerHTML=`<span class="bad">${escapeHtml(e.message)}</span>`;}};
-  document.getElementById("runBacktest").onclick=()=>{try{runBacktestAll();}catch(e){document.getElementById("btStatus").innerHTML=`<span class="bad">${escapeHtml(e.message)}</span>`;}};
-  document.getElementById("fitParams").onclick=()=>{try{fitParams();}catch(e){document.getElementById("btStatus").innerHTML=`<span class="bad">${escapeHtml(e.message)}</span>`;}};
   const dates=RESULTS.map(m=>m.date).sort();
   const postSnapshot=RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate);
   const latestPost=postSnapshot.map(m=>m.date).sort().at(-1)||"-";
-  document.getElementById("foot").innerHTML=`版本 ${APP_VERSION}；当前内嵌 2026 赛果 ${RESULTS.length} 场；快照截止 ${MODEL_SNAPSHOT.latestDate}；快照后增量 ${postSnapshot.length} 场，更新到 ${latestPost}。历史回测数据在线加载，不含 xG/阵容/伤停。`;
+  document.getElementById("foot").innerHTML=`数据截至 ${latestPost} · 已录入 ${RESULTS.length} 场结果 · 版本 ${APP_VERSION}`;
 }
 init();
 </script>
