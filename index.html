@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 世界杯预测模型实验室</title>
+<style>
+  *{box-sizing:border-box}
+  :root{
+    --paper:#FBF9F1;--paper2:#F5F0E8;--ink:#13233A;--muted:#6b7785;
+    --line:#e7dece;--red:#9B2D20;--gold:#C8A45C;--good:#596f62;--card:#fffefb;
+  }
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.55}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 64px}
+  header{display:flex;gap:18px;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+  h1{font-size:28px;line-height:1.2;margin:0 0 7px;font-weight:760;letter-spacing:0}
+  .sub{color:var(--muted);font-size:14px;max-width:820px}
+  .badge{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--paper2);
+    color:var(--red);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:650;white-space:nowrap}
+  .grid{display:grid;grid-template-columns:minmax(320px,430px) 1fr;gap:16px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;
+    box-shadow:0 1px 3px rgba(19,35,58,.04)}
+  .panel h2{font-size:17px;margin:0 0 12px}
+  .panel h3{font-size:14px;margin:18px 0 8px;color:var(--red)}
+  .controls{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+  select,input,button{font:inherit}
+  select,input{width:100%;padding:10px 11px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--ink)}
+  .swap{height:40px;width:42px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--muted);cursor:pointer}
+  .btnrow{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+  button.primary,button.secondary{border:0;border-radius:8px;padding:10px 13px;cursor:pointer;font-weight:680}
+  button.primary{background:var(--red);color:#fff}
+  button.secondary{background:var(--paper2);color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.55;cursor:wait}
+  .note{font-size:12px;color:var(--muted);margin-top:9px}
+  .result{margin-top:14px}
+  .teams{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;margin:6px 0 12px}
+  .team{text-align:center}
+  .team .name{font-weight:760;font-size:18px}
+  .team .elo{font-size:12px;color:var(--muted)}
+  .adv{font-size:32px;font-weight:800;line-height:1.2;margin-top:4px}
+  .vs{font-size:12px;color:#aa9f8e;padding-top:34px}
+  .bar{display:flex;height:9px;border-radius:8px;overflow:hidden;margin:10px 0 8px;background:var(--paper2)}
+  .wdl{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
+  .xg{text-align:center;margin:14px 0;color:var(--muted);font-size:13px}
+  .xg b{color:var(--ink)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font-size:12px;padding:5px 9px;border:1px solid var(--line);border-radius:8px;background:var(--paper2)}
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+  .tab{border:1px solid var(--line);background:var(--paper2);padding:8px 11px;border-radius:8px;cursor:pointer;font-size:13px}
+  .tab.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .view{display:none}.view.active{display:block}
+  table{border-collapse:collapse;width:100%;font-size:12px;background:#fff}
+  th,td{border:1px solid var(--line);padding:7px 8px;text-align:right;vertical-align:top}
+  th{background:var(--ink);color:#fff;font-weight:650}
+  td:first-child,th:first-child{text-align:left}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .kv{display:grid;grid-template-columns:190px 1fr;gap:0;border:1px solid var(--line);border-bottom:0;font-size:12px}
+  .kv div{padding:7px 9px;border-bottom:1px solid var(--line)}
+  .kv div:nth-child(odd){background:var(--paper2);font-weight:650}
+  .status{font-size:13px;color:var(--muted);min-height:22px;margin-top:10px}
+  .warn{border-left:4px solid var(--gold);background:#fff8e7;padding:10px 12px;border-radius:8px;color:#5f4b1d;font-size:13px}
+  .good{color:var(--good);font-weight:700}.bad{color:var(--red);font-weight:700}
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace}
+  footer{margin-top:20px;text-align:center;color:#98a1aa;font-size:12px}
+  @media(max-width:900px){.grid,.twocol{grid-template-columns:1fr}header{display:block}.badge{margin-top:12px}.controls{grid-template-columns:1fr}.swap{width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>2026 世界杯预测模型实验室</h1>
+      <div class="sub">现有模型的系统升级版：先审计，再回测，再拟合参数，最后用 Dixon-Coles 修正低比分。页面不使用博彩赔率、Polymarket 或市场投票作为模型输入。</div>
+    </div>
+    <div class="badge">No-market model · rolling backtest · Dixon-Coles</div>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>单场预测</h2>
+      <div class="controls">
+        <select id="teamA"></select>
+        <button class="swap" id="swap" title="交换球队" aria-label="交换球队">⇄</button>
+        <select id="teamB"></select>
+      </div>
+      <div class="btnrow">
+        <select id="modelChoice" style="max-width:230px">
+          <option value="dc">全量拟合 Dixon-Coles</option>
+          <option value="fitted">全量拟合普通 Poisson</option>
+          <option value="current">原始经验参数</option>
+          <option value="elo">Elo-only</option>
+          <option value="ad">Attack/Defense-only</option>
+        </select>
+        <button class="primary" id="go">预测</button>
+      </div>
+      <div class="note">预测使用当前页面内的球队基础值 + 已录入赛果滚动更新；市场赔率只可作外部对照，不进入计算。</div>
+      <div class="result" id="result"></div>
+    </section>
+
+    <section class="panel">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-view="audit">模型审计</button>
+        <button class="tab" data-view="backtest">回测与拟合</button>
+        <button class="tab" data-view="metrics">指标报告</button>
+        <button class="tab" data-view="params">参数表</button>
+        <button class="tab" data-view="sources">数据来源</button>
+      </div>
+
+      <div class="view active" id="view-audit">
+        <h2>当前模型审计</h2>
+        <div class="warn">本页先不引入 xT、VAEP、tracking、风格克制等高成本模块。升级重点是：滚动回测、校准、参数拟合、Dixon-Coles 低比分修正。</div>
+        <h3>真正进入单场预测的字段</h3>
+        <div class="kv" id="auditKv"></div>
+        <h3>字段用途判定</h3>
+        <table id="fieldTable"></table>
+      </div>
+
+      <div class="view" id="view-backtest">
+        <h2>Rolling Backtest</h2>
+        <div class="twocol">
+          <div>
+            <label>开始日期</label>
+            <input id="btStart" value="2010-01-01">
+          </div>
+          <div>
+            <label>结束日期</label>
+            <input id="btEnd" value="2025-12-31">
+          </div>
+          <div>
+            <label>赛事筛选</label>
+            <select id="btFilter">
+              <option value="all">全部国家队比赛</option>
+              <option value="worldcup">世界杯正赛</option>
+              <option value="continental">洲际杯正赛</option>
+              <option value="wcq">世界杯预选赛</option>
+              <option value="qualifier">所有预选赛</option>
+              <option value="friendly">友谊赛</option>
+            </select>
+          </div>
+          <div>
+            <label>最大评估场次</label>
+            <input id="btLimit" value="9000">
+          </div>
+        </div>
+        <div class="btnrow">
+          <button class="primary" id="loadData">加载历史数据</button>
+          <button class="secondary" id="runBacktest">运行模型对比</button>
+          <button class="secondary" id="fitParams">快速参数试探</button>
+        </div>
+        <div class="status" id="btStatus">尚未加载历史数据。</div>
+      </div>
+
+      <div class="view" id="view-metrics">
+        <h2>模型版本对比</h2>
+        <div id="metricsOut" class="status">运行回测后显示。</div>
+        <h3>校准分桶</h3>
+        <div id="calibrationOut" class="status">运行回测后显示。</div>
+        <h3>赛事类型与 Elo 差分桶</h3>
+        <div id="sliceOut" class="status">运行回测后显示。</div>
+      </div>
+
+      <div class="view" id="view-params">
+        <h2>集中参数管理</h2>
+        <div id="paramsOut"></div>
+      </div>
+
+      <div class="view" id="view-sources">
+        <h2>数据来源与缺口</h2>
+        <table>
+          <tr><th>数据层</th><th>来源</th><th>当前状态</th><th>用途</th></tr>
+          <tr><td>历史国家队赛果</td><td>martj42 / international_results results.csv</td><td>在线加载；覆盖大量 1872 至今比赛</td><td>滚动回测、参数拟合、Elo/攻防更新</td></tr>
+          <tr><td>当前 48 队初始强度</td><td>原工作簿/World Football Elo/FIFA/Transfermarkt 整理值</td><td>内嵌在页面 BASE</td><td>2026 单场预测初始值</td></tr>
+          <tr><td>2026 已录入赛果</td><td>World Football Elo latest.tsv / FIFA 赛果核对</td><td>内嵌 20 场；可手动追加</td><td>当前评级滚动更新</td></tr>
+          <tr><td>xG/xGA</td><td>StatsBomb/Wyscout 等事件数据</td><td>未接入；不伪造</td><td>第三轮增强项</td></tr>
+          <tr><td>阵容/伤停</td><td>FIFA 官方名单、Transfermarkt、新闻源</td><td>未结构化接入</td><td>第二轮增强项，只作修正项</td></tr>
+          <tr><td>市场赔率/Polymarket</td><td>不使用</td><td>禁止作为模型输入</td><td>最多外部 sanity check</td></tr>
+        </table>
+      </div>
+    </section>
+  </div>
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
+const EPS = 1e-12;
+
+const BASE = [
+{t:"Spain",c:"西班牙",a:95.6,d:94.1,e:2129,p:85,region:"Europe"},
+{t:"Argentina",c:"阿根廷",a:91.9,d:86.3,e:2115,p:84.3,region:"Latin America"},
+{t:"France",c:"法国",a:95.3,d:93.2,e:2084,p:82.7,region:"Europe"},
+{t:"England",c:"英格兰",a:92.2,d:92.9,e:2024,p:79.6,region:"Europe"},
+{t:"Portugal",c:"葡萄牙",a:91.6,d:89.5,e:1989,p:77.8,region:"Europe"},
+{t:"Colombia",c:"哥伦比亚",a:82.1,d:80.5,e:1982,p:77.5,region:"Latin America"},
+{t:"Brazil",c:"巴西",a:92.4,d:84.7,e:1978,p:77.3,region:"Latin America"},
+{t:"Netherlands",c:"荷兰",a:86.6,d:89.3,e:1944,p:75.5,region:"Europe"},
+{t:"Germany",c:"德国",a:86.5,d:86.4,e:1939,p:75.2,region:"Europe"},
+{t:"Norway",c:"挪威",a:88.3,d:81.5,e:1929,p:74.7,region:"Europe"},
+{t:"Croatia",c:"克罗地亚",a:80.9,d:84.1,e:1912,p:73.9,region:"Europe"},
+{t:"Japan",c:"日本",a:80.6,d:80.5,e:1910,p:73.8,region:"East Asia"},
+{t:"Ecuador",c:"厄瓜多尔",a:81.1,d:80,e:1890,p:72.7,region:"Latin America"},
+{t:"Mexico",c:"墨西哥",a:79.3,d:79.3,e:1881,p:72.3,region:"North America"},
+{t:"Belgium",c:"比利时",a:84.1,d:87.4,e:1879,p:72.2,region:"Europe"},
+{t:"Uruguay",c:"乌拉圭",a:80.1,d:78.8,e:1870,p:71.7,region:"Latin America"},
+{t:"Switzerland",c:"瑞士",a:80.6,d:83.8,e:1865,p:71.5,region:"Europe"},
+{t:"Türkiye",c:"土耳其",a:75.8,d:77.5,e:1849,p:70.6,region:"Europe/Middle East"},
+{t:"Morocco",c:"摩洛哥",a:80.7,d:79.5,e:1840,p:70.2,region:"North Africa"},
+{t:"Australia",c:"澳大利亚",a:76.9,d:77.3,e:1839,p:70.1,region:"Oceania/Asia"},
+{t:"Senegal",c:"塞内加尔",a:82.7,d:80.3,e:1839,p:70.1,region:"West Africa"},
+{t:"Austria",c:"奥地利",a:78.1,d:79.7,e:1830,p:69.7,region:"Europe"},
+{t:"Scotland",c:"苏格兰",a:76.9,d:77.9,e:1794,p:67.8,region:"Europe"},
+{t:"Korea Republic",c:"韩国",a:76.3,d:76.8,e:1786,p:67.4,region:"East Asia"},
+{t:"Paraguay",c:"巴拉圭",a:75.8,d:75.8,e:1780,p:67.1,region:"Latin America"},
+{t:"USA",c:"美国",a:80.3,d:78.5,e:1780,p:67.1,region:"North America"},
+{t:"Algeria",c:"阿尔及利亚",a:80.7,d:76.6,e:1772,p:66.7,region:"North Africa"},
+{t:"Canada",c:"加拿大",a:78.2,d:77.2,e:1767,p:66.4,region:"North America"},
+{t:"IR Iran",c:"伊朗",a:74.8,d:76.6,e:1756,p:65.9,region:"Middle East"},
+{t:"Sweden",c:"瑞典",a:79.3,d:78.1,e:1755,p:65.8,region:"Europe"},
+{t:"Panama",c:"巴拿马",a:71.8,d:76.8,e:1730,p:64.5,region:"North America"},
+{t:"Uzbekistan",c:"乌兹别克斯坦",a:73.9,d:75.7,e:1714,p:63.7,region:"Central Asia"},
+{t:"Czechia",c:"捷克",a:77,d:78.1,e:1712,p:63.6,region:"Europe"},
+{t:"Egypt",c:"埃及",a:77.6,d:74.1,e:1711,p:63.5,region:"North Africa"},
+{t:"Jordan",c:"约旦",a:72.1,d:73.7,e:1680,p:62,region:"Middle East"},
+{t:"Congo DR",c:"刚果（金）",a:71.9,d:72.4,e:1652,p:60.5,region:"Central Africa"},
+{t:"Bosnia And Herzegovina",c:"波黑",a:72.7,d:73.1,e:1616,p:58.7,region:"Europe"},
+{t:"Cabo Verde",c:"佛得角",a:70.6,d:72.4,e:1606,p:58.2,region:"West Africa"},
+{t:"Saudi Arabia",c:"沙特",a:71.8,d:71.5,e:1598,p:57.7,region:"Middle East"},
+{t:"Iraq",c:"伊拉克",a:71.6,d:72.3,e:1592,p:57.4,region:"Middle East"},
+{t:"Tunisia",c:"突尼斯",a:70.3,d:72.3,e:1585,p:57.1,region:"North Africa"},
+{t:"New Zealand",c:"新西兰",a:71.7,d:72.3,e:1578,p:56.7,region:"Oceania"},
+{t:"Haiti",c:"海地",a:75.1,d:70.3,e:1536,p:54.6,region:"Caribbean"},
+{t:"South Africa",c:"南非",a:72,d:68.9,e:1511,p:53.3,region:"Southern Africa"},
+{t:"Ghana",c:"加纳",a:74.9,d:70.8,e:1510,p:53.2,region:"West Africa"},
+{t:"Côte D'Ivoire",c:"科特迪瓦",a:78.5,d:73.4,e:1500,p:52.7,region:"West Africa"},
+{t:"Curaçao",c:"库拉索",a:71.6,d:69.7,e:1500,p:52.7,region:"Caribbean"},
+{t:"Qatar",c:"卡塔尔",a:71,d:71,e:1447,p:50,region:"Middle East"}
+];
+
+const RESULTS = [
+{date:"2026-06-11", a:"Korea Republic", b:"Czechia", gf:2, ga:1},
+{date:"2026-06-11", a:"Mexico", b:"South Africa", gf:2, ga:0},
+{date:"2026-06-12", a:"Canada", b:"Bosnia And Herzegovina", gf:1, ga:1},
+{date:"2026-06-12", a:"USA", b:"Paraguay", gf:4, ga:1},
+{date:"2026-06-13", a:"Australia", b:"Türkiye", gf:2, ga:0},
+{date:"2026-06-13", a:"Brazil", b:"Morocco", gf:1, ga:1},
+{date:"2026-06-13", a:"Qatar", b:"Switzerland", gf:1, ga:1},
+{date:"2026-06-13", a:"Scotland", b:"Haiti", gf:1, ga:0},
+{date:"2026-06-14", a:"Côte D'Ivoire", b:"Ecuador", gf:1, ga:0},
+{date:"2026-06-14", a:"Germany", b:"Curaçao", gf:7, ga:1},
+{date:"2026-06-14", a:"Japan", b:"Netherlands", gf:2, ga:2},
+{date:"2026-06-14", a:"Sweden", b:"Tunisia", gf:5, ga:1},
+{date:"2026-06-15", a:"Belgium", b:"Egypt", gf:1, ga:1},
+{date:"2026-06-15", a:"Cabo Verde", b:"Spain", gf:0, ga:0},
+{date:"2026-06-15", a:"IR Iran", b:"New Zealand", gf:2, ga:2},
+{date:"2026-06-15", a:"Saudi Arabia", b:"Uruguay", gf:1, ga:1},
+{date:"2026-06-16", a:"Argentina", b:"Algeria", gf:3, ga:0},
+{date:"2026-06-16", a:"Austria", b:"Jordan", gf:3, ga:1},
+{date:"2026-06-16", a:"France", b:"Senegal", gf:3, ga:1},
+{date:"2026-06-16", a:"Norway", b:"Iraq", gf:4, ga:1},
+{date:"2026-06-18", a:"Portugal", b:"Congo DR", gf:1, ga:1},
+{date:"2026-06-18", a:"England", b:"Croatia", gf:4, ga:2},
+{date:"2026-06-18", a:"Ghana", b:"Panama", gf:1, ga:0},
+{date:"2026-06-18", a:"Uzbekistan", b:"Colombia", gf:1, ga:3}
+];
+
+const PARAMS = {
+  current:{name:"原始经验参数", alpha:Math.log(1.32), betaAD:1/38, betaElo:1/950, k:24, adK:0.35, minLambda:0.15, maxLambda:4.2, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9},
+  fitted:{name:"全量拟合普通 Poisson", alpha:0.292669613963, betaAD:0.0227272727273, betaElo:0.00105263157895, k:26.0000000000, adK:0.280000000000, minLambda:0.0800000000000, maxLambda:4.00000000000, scoreMax:8.00000000000, rho:0.00000000000, penEloScale:520.000000000, penRatingScale:12.0000000000, hostCoef:0.180000000000, neutralCoef:0.00000000000, importanceCoef:0.0400000000000},
+  dc:{name:"全量拟合 Dixon-Coles", alpha:0.292669613963, betaAD:0.0227272727273, betaElo:0.00105263157895, k:26.0000000000, adK:0.280000000000, minLambda:0.0800000000000, maxLambda:4.00000000000, scoreMax:8.00000000000, rho:-0.0300000000000, penEloScale:520.000000000, penRatingScale:12.0000000000, hostCoef:0.180000000000, neutralCoef:0.00000000000, importanceCoef:0.0400000000000},
+  elo:{name:"Elo-only", alpha:Math.log(1.28), betaAD:0, betaElo:1/850, k:24, adK:0, minLambda:0.08, maxLambda:3.8, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9},
+  ad:{name:"Attack/Defense-only", alpha:Math.log(1.28), betaAD:1/38, betaElo:0, k:0, adK:0.35, minLambda:0.08, maxLambda:3.8, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9}
+};
+
+const MODEL_SNAPSHOT = {
+  "generatedAt": "2026-06-17T17:23:06.126Z",
+  "dataSource": "https://raw.githubusercontent.com/martj42/international_results/master/results.csv",
+  "dataCache": "C:\\Users\\DELL\\Desktop\\worldcup_results_cache.csv",
+  "latestDate": "2026-06-16",
+  "fitWindow": {
+    "start": "2010-01-01",
+    "end": "2025-12-31",
+    "filter": "all"
+  },
+  "params": {
+    "name": "Full-fit Dixon-Coles",
+    "alpha": 0.29266961396282004,
+    "betaAD": 0.022727272727272728,
+    "betaElo": 0.0010526315789473684,
+    "k": 26,
+    "adK": 0.28,
+    "minLambda": 0.08,
+    "maxLambda": 4,
+    "scoreMax": 8,
+    "rho": -0.03,
+    "penEloScale": 520,
+    "penRatingScale": 12,
+    "hostCoef": 0.18,
+    "neutralCoef": 0,
+    "importanceCoef": 0.04
+  },
+  "metrics": {
+    "n": 15506,
+    "logLoss": 0.8884124559658422,
+    "brier": 0.5227587026310776,
+    "scoreNll": 3.0146289903879526,
+    "drawPred": 0.2317747128016797,
+    "drawAct": 0.23165226363988134,
+    "p00": 0.07765692013083446,
+    "a00": 0.08745001934734942,
+    "p11": 0.10663732877302588,
+    "a11": 0.10260544305430155
+  },
+  "ratings": {
+    "Spain": {
+      "c": "西班牙",
+      "region": "Europe",
+      "elo": 2011.51,
+      "attack": 96.091,
+      "defense": 94.343,
+      "penalty": 85
+    },
+    "Argentina": {
+      "c": "阿根廷",
+      "region": "Latin America",
+      "elo": 2033.462,
+      "attack": 90.814,
+      "defense": 98.642,
+      "penalty": 84.3
+    },
+    "France": {
+      "c": "法国",
+      "region": "Europe",
+      "elo": 1978.147,
+      "attack": 89.505,
+      "defense": 93.48,
+      "penalty": 82.7
+    },
+    "England": {
+      "c": "英格兰",
+      "region": "Europe",
+      "elo": 1928.656,
+      "attack": 89.29,
+      "defense": 97.529,
+      "penalty": 79.6
+    },
+    "Portugal": {
+      "c": "葡萄牙",
+      "region": "Europe",
+      "elo": 1935.434,
+      "attack": 93.404,
+      "defense": 92.186,
+      "penalty": 77.8
+    },
+    "Colombia": {
+      "c": "哥伦比亚",
+      "region": "Latin America",
+      "elo": 1915.09,
+      "attack": 85.35,
+      "defense": 96.977,
+      "penalty": 77.5
+    },
+    "Brazil": {
+      "c": "巴西",
+      "region": "Latin America",
+      "elo": 1936.017,
+      "attack": 93.549,
+      "defense": 98.178,
+      "penalty": 77.3
+    },
+    "Netherlands": {
+      "c": "荷兰",
+      "region": "Europe",
+      "elo": 1901.308,
+      "attack": 94.353,
+      "defense": 89,
+      "penalty": 75.5
+    },
+    "Germany": {
+      "c": "德国",
+      "region": "Europe",
+      "elo": 1925.477,
+      "attack": 98.841,
+      "defense": 82.268,
+      "penalty": 75.2
+    },
+    "Norway": {
+      "c": "挪威",
+      "region": "Europe",
+      "elo": 1820.442,
+      "attack": 87.122,
+      "defense": 85.435,
+      "penalty": 74.7
+    },
+    "Croatia": {
+      "c": "克罗地亚",
+      "region": "Europe",
+      "elo": 1869.063,
+      "attack": 84.94,
+      "defense": 86.916,
+      "penalty": 73.9
+    },
+    "Japan": {
+      "c": "日本",
+      "region": "East Asia",
+      "elo": 1893.693,
+      "attack": 94.025,
+      "defense": 90.184,
+      "penalty": 73.8
+    },
+    "Ecuador": {
+      "c": "厄瓜多尔",
+      "region": "Latin America",
+      "elo": 1851.54,
+      "attack": 80.724,
+      "defense": 92.361,
+      "penalty": 72.7
+    },
+    "Mexico": {
+      "c": "墨西哥",
+      "region": "North America",
+      "elo": 1861.535,
+      "attack": 84.137,
+      "defense": 91.172,
+      "penalty": 72.3
+    },
+    "Belgium": {
+      "c": "比利时",
+      "region": "Europe",
+      "elo": 1866.74,
+      "attack": 93.365,
+      "defense": 86.061,
+      "penalty": 72.2
+    },
+    "Uruguay": {
+      "c": "乌拉圭",
+      "region": "Latin America",
+      "elo": 1834.543,
+      "attack": 83.853,
+      "defense": 93.042,
+      "penalty": 71.7
+    },
+    "Switzerland": {
+      "c": "瑞士",
+      "region": "Europe",
+      "elo": 1821.819,
+      "attack": 85.564,
+      "defense": 86.259,
+      "penalty": 71.5
+    },
+    "Türkiye": {
+      "c": "土耳其",
+      "region": "Europe/Middle East",
+      "elo": 1822.813,
+      "attack": 84.049,
+      "defense": 80.751,
+      "penalty": 70.6
+    },
+    "Morocco": {
+      "c": "摩洛哥",
+      "region": "North Africa",
+      "elo": 1888.133,
+      "attack": 79.858,
+      "defense": 97.608,
+      "penalty": 70.2
+    },
+    "Australia": {
+      "c": "澳大利亚",
+      "region": "Oceania/Asia",
+      "elo": 1801.249,
+      "attack": 87.949,
+      "defense": 91.817,
+      "penalty": 70.1
+    },
+    "Senegal": {
+      "c": "塞内加尔",
+      "region": "West Africa",
+      "elo": 1797.264,
+      "attack": 79.714,
+      "defense": 91.315,
+      "penalty": 70.1
+    },
+    "Austria": {
+      "c": "奥地利",
+      "region": "Europe",
+      "elo": 1825.269,
+      "attack": 84.428,
+      "defense": 82.463,
+      "penalty": 69.7
+    },
+    "Scotland": {
+      "c": "苏格兰",
+      "region": "Europe",
+      "elo": 1739.061,
+      "attack": 76.191,
+      "defense": 82.898,
+      "penalty": 67.8
+    },
+    "Korea Republic": {
+      "c": "韩国",
+      "region": "East Asia",
+      "elo": 1823.518,
+      "attack": 84.06,
+      "defense": 89.002,
+      "penalty": 67.4
+    },
+    "Paraguay": {
+      "c": "巴拉圭",
+      "region": "Latin America",
+      "elo": 1757.986,
+      "attack": 75.795,
+      "defense": 88.892,
+      "penalty": 67.1
+    },
+    "USA": {
+      "c": "美国",
+      "region": "North America",
+      "elo": 1809.514,
+      "attack": 87.38,
+      "defense": 83.39,
+      "penalty": 67.1
+    },
+    "Algeria": {
+      "c": "阿尔及利亚",
+      "region": "North Africa",
+      "elo": 1807.659,
+      "attack": 86.592,
+      "defense": 85.239,
+      "penalty": 66.7
+    },
+    "Canada": {
+      "c": "加拿大",
+      "region": "North America",
+      "elo": 1789.08,
+      "attack": 82.915,
+      "defense": 88.478,
+      "penalty": 66.4
+    },
+    "IR Iran": {
+      "c": "伊朗",
+      "region": "Middle East",
+      "elo": 1811.503,
+      "attack": 85.577,
+      "defense": 94.451,
+      "penalty": 65.9
+    },
+    "Sweden": {
+      "c": "瑞典",
+      "region": "Europe",
+      "elo": 1743.354,
+      "attack": 85.155,
+      "defense": 83.579,
+      "penalty": 65.8
+    },
+    "Panama": {
+      "c": "巴拿马",
+      "region": "North America",
+      "elo": 1714.414,
+      "attack": 79.483,
+      "defense": 80.813,
+      "penalty": 64.5
+    },
+    "Uzbekistan": {
+      "c": "乌兹别克斯坦",
+      "region": "Central Asia",
+      "elo": 1736.959,
+      "attack": 80.298,
+      "defense": 87.195,
+      "penalty": 63.7
+    },
+    "Czechia": {
+      "c": "捷克",
+      "region": "Europe",
+      "elo": 1739.38,
+      "attack": 83.079,
+      "defense": 82.21,
+      "penalty": 63.6
+    },
+    "Egypt": {
+      "c": "埃及",
+      "region": "North Africa",
+      "elo": 1746.939,
+      "attack": 76.3,
+      "defense": 89.677,
+      "penalty": 63.5
+    },
+    "Jordan": {
+      "c": "约旦",
+      "region": "Middle East",
+      "elo": 1659.136,
+      "attack": 78.853,
+      "defense": 84.168,
+      "penalty": 62
+    },
+    "Congo DR": {
+      "c": "刚果（金）",
+      "region": "Central Africa",
+      "elo": 1655.636,
+      "attack": 74.834,
+      "defense": 85.173,
+      "penalty": 60.5
+    },
+    "Bosnia And Herzegovina": {
+      "c": "波黑",
+      "region": "Europe",
+      "elo": 1622.72,
+      "attack": 75.457,
+      "defense": 78.994,
+      "penalty": 58.7
+    },
+    "Cabo Verde": {
+      "c": "佛得角",
+      "region": "West Africa",
+      "elo": 1616.412,
+      "attack": 69.378,
+      "defense": 81.238,
+      "penalty": 58.2
+    },
+    "Saudi Arabia": {
+      "c": "沙特",
+      "region": "Middle East",
+      "elo": 1660.331,
+      "attack": 74.163,
+      "defense": 86.738,
+      "penalty": 57.7
+    },
+    "Iraq": {
+      "c": "伊拉克",
+      "region": "Middle East",
+      "elo": 1684.72,
+      "attack": 71.956,
+      "defense": 89.142,
+      "penalty": 57.4
+    },
+    "Tunisia": {
+      "c": "突尼斯",
+      "region": "North Africa",
+      "elo": 1668.452,
+      "attack": 74.455,
+      "defense": 88.161,
+      "penalty": 57.1
+    },
+    "New Zealand": {
+      "c": "新西兰",
+      "region": "Oceania",
+      "elo": 1625.647,
+      "attack": 87.128,
+      "defense": 87.188,
+      "penalty": 56.7
+    },
+    "Haiti": {
+      "c": "海地",
+      "region": "Caribbean",
+      "elo": 1586.832,
+      "attack": 85.111,
+      "defense": 78.963,
+      "penalty": 54.6
+    },
+    "South Africa": {
+      "c": "南非",
+      "region": "Southern Africa",
+      "elo": 1630.251,
+      "attack": 69.78,
+      "defense": 86.478,
+      "penalty": 53.3
+    },
+    "Ghana": {
+      "c": "加纳",
+      "region": "West Africa",
+      "elo": 1568.563,
+      "attack": 74.738,
+      "defense": 86.188,
+      "penalty": 53.2
+    },
+    "Côte D'Ivoire": {
+      "c": "科特迪瓦",
+      "region": "West Africa",
+      "elo": 1768.708,
+      "attack": 80.563,
+      "defense": 87.945,
+      "penalty": 52.7
+    },
+    "Curaçao": {
+      "c": "库拉索",
+      "region": "Caribbean",
+      "elo": 1509.885,
+      "attack": 77.459,
+      "defense": 74.147,
+      "penalty": 52.7
+    },
+    "Qatar": {
+      "c": "卡塔尔",
+      "region": "Middle East",
+      "elo": 1594.039,
+      "attack": 77.494,
+      "defense": 76.268,
+      "penalty": 50
+    }
+  }
+};
+
+let historicalMatches = null;
+let lastReports = null;
+
+function deepParams(p){return JSON.parse(JSON.stringify(p));}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function fact(k){let f=1;for(let i=2;i<=k;i++)f*=i;return f;}
+function pois(k,l){return Math.exp(-l)*Math.pow(l,k)/fact(k);}
+function pc(v,d=0){return (v*100).toFixed(d)+"%";}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+
+function norm(s){
+  return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+}
+const alias = new Map([
+  ["turkey","Türkiye"],["turkiye","Türkiye"],["ivory coast","Côte D'Ivoire"],["cote d ivoire","Côte D'Ivoire"],
+  ["south korea","Korea Republic"],["united states","USA"],["iran","IR Iran"],["cape verde","Cabo Verde"],
+  ["czech republic","Czechia"],["bosnia herzegovina","Bosnia And Herzegovina"],["bosnia and herzegovina","Bosnia And Herzegovina"],
+  ["curacao","Curaçao"],["saudi arabia","Saudi Arabia"],["new zealand","New Zealand"],["south africa","South Africa"],
+  ["dr congo","Congo DR"],["democratic republic of congo","Congo DR"]
+]);
+function resolveName(name){
+  const n=norm(name);
+  for(const t of BASE){if(norm(t.t)===n||norm(t.c)===n)return t.t;}
+  if(alias.has(n)) return alias.get(n);
+  return name;
+}
+
+function createStateFromBase(){
+  const state={};
+  BASE.forEach(t=>state[t.t]={id:t.t,c:t.c,region:t.region||"Unknown",elo:t.e,attack:t.a,defense:t.d,penalty:t.p});
+  return state;
+}
+function createNeutralHistoryState(){
+  const state={};
+  BASE.forEach(t=>state[t.t]={id:t.t,c:t.c,region:t.region||"Unknown",elo:1500,attack:72,defense:72,penalty:t.p});
+  return state;
+}
+function ensureTeam(state,id){
+  id=resolveName(id);
+  if(!state[id]) state[id]={id,c:id,region:"Unknown",elo:1500,attack:72,defense:72,penalty:50};
+  return state[id];
+}
+function expectedFromElo(a,b){return 1/(1+Math.pow(10,(b-a)/400));}
+function actual(gf,ga){return gf>ga?1:(gf<ga?0:0.5);}
+function lambdas(a,b,p,opts={}){
+  const hostA=opts.hostA?1:0, hostB=opts.hostB?1:0, neutral=opts.neutral?1:0, importance=opts.importance||0;
+  const hostCoef=p.hostCoef||0, neutralCoef=p.neutralCoef||0, importanceCoef=p.importanceCoef||0;
+  const logA=p.alpha+p.betaAD*(a.attack-b.defense)+p.betaElo*(a.elo-b.elo)+hostCoef*hostA-hostCoef*hostB+neutralCoef*neutral+importanceCoef*importance;
+  const logB=p.alpha+p.betaAD*(b.attack-a.defense)+p.betaElo*(b.elo-a.elo)+hostCoef*hostB-hostCoef*hostA+neutralCoef*neutral+importanceCoef*importance;
+  return [clamp(Math.exp(logA),p.minLambda,p.maxLambda),clamp(Math.exp(logB),p.minLambda,p.maxLambda)];
+}
+function tauDC(i,j,la,lb,rho){
+  if(!rho) return 1;
+  if(i===0&&j===0) return Math.max(0.001,1-la*lb*rho);
+  if(i===0&&j===1) return Math.max(0.001,1+la*rho);
+  if(i===1&&j===0) return Math.max(0.001,1+lb*rho);
+  if(i===1&&j===1) return Math.max(0.001,1-rho);
+  return 1;
+}
+function scoreMatrix(a,b,p,opts={}){
+  const [la,lb]=lambdas(a,b,p,opts);
+  let cells=[],sum=0,w=0,d=0,l=0,over15=0,over25=0,over35=0,p00=0,p11=0;
+  for(let i=0;i<=p.scoreMax;i++){
+    for(let j=0;j<=p.scoreMax;j++){
+      let pr=pois(i,la)*pois(j,lb)*tauDC(i,j,la,lb,p.rho||0);
+      cells.push({i,j,pr}); sum+=pr;
+    }
+  }
+  cells.forEach(c=>{
+    c.pr/=sum;
+    if(c.i>c.j) w+=c.pr; else if(c.i===c.j)d+=c.pr; else l+=c.pr;
+    if(c.i+c.j>1.5)over15+=c.pr;
+    if(c.i+c.j>2.5)over25+=c.pr;
+    if(c.i+c.j>3.5)over35+=c.pr;
+    if(c.i===0&&c.j===0)p00=c.pr;
+    if(c.i===1&&c.j===1)p11=c.pr;
+  });
+  cells.sort((x,y)=>y.pr-x.pr);
+  const penA=1/(1+Math.exp(-(((a.elo-b.elo)/(p.penEloScale||420))+((a.penalty-b.penalty)/(p.penRatingScale||9)))));
+  return {la,lb,w,d,l,advA:w+d*penA,penA,over15,over25,over35,p00,p11,cells};
+}
+function updateState(state,aId,bId,gf,ga,p,opts={}){
+  const A=ensureTeam(state,aId), B=ensureTeam(state,bId);
+  const pred=scoreMatrix(A,B,p,opts);
+  const expA=expectedFromElo(A.elo,B.elo), actA=actual(gf,ga);
+  const dE=(p.k||0)*(actA-expA);
+  A.elo+=dE; B.elo-=dE;
+  const resA=gf-pred.la, resB=ga-pred.lb, k=p.adK||0;
+  A.attack+=k*resA; B.defense-=k*resA;
+  B.attack+=k*resB; A.defense-=k*resB;
+  A.attack=clamp(A.attack,50,105);B.attack=clamp(B.attack,50,105);
+  A.defense=clamp(A.defense,50,105);B.defense=clamp(B.defense,50,105);
+}
+function currentRatings(params){
+  const state=createStateFromBase();
+  RESULTS.forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
+  return state;
+}
+function stateFromSnapshot(params){
+  if(!MODEL_SNAPSHOT||!MODEL_SNAPSHOT.ratings) return null;
+  const state={};
+  Object.entries(MODEL_SNAPSHOT.ratings).forEach(([id,r])=>state[id]={id,c:r.c,region:r.region||"Unknown",elo:r.elo,attack:r.attack,defense:r.defense,penalty:r.penalty});
+  RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
+  return state;
+}
+function historicalCurrentRatings(params, latestDate){
+  const state=createNeutralHistoryState();
+  if(!historicalMatches) return state;
+  for(const m of historicalMatches){
+    if(m.date>latestDate) break;
+    const cat=classifyTournament(m.tournament);
+    updateState(state,m.home,m.away,m.hs,m.as,params,{neutral:m.neutral,importance:importanceOf(cat)});
+  }
+  return state;
+}
+
+function cloneTeam(t){return {...t};}
+function daysBetween(a,b){return Math.max(0,(new Date(b)-new Date(a))/86400000);}
+function teamHistoryContext(teamId, latestDate){
+  if(!historicalMatches) return null;
+  const start="2018-01-01", halfLife=730;
+  let wSum=0,gf=0,ga=0,pts=0,draw=0,low=0,n=0;
+  for(const m of historicalMatches){
+    if(m.date<start || m.date>latestDate) continue;
+    const home=resolveName(m.home), away=resolveName(m.away);
+    if(home!==teamId && away!==teamId) continue;
+    const isHome=home===teamId, f=isHome?m.hs:m.as, a=isHome?m.as:m.hs;
+    const w=Math.exp(-daysBetween(m.date,latestDate)/halfLife);
+    wSum+=w; gf+=w*f; ga+=w*a; pts+=w*(f>a?3:(f===a?1:0)); draw+=w*(f===a?1:0); low+=w*((f+a)<=2?1:0); n++;
+  }
+  if(!wSum) return {n:0,eloAdj:0,attackAdj:0,defenseAdj:0,drawRate:0.26,lowRate:0.52};
+  const gfpg=gf/wSum, gapg=ga/wSum, ppg=pts/wSum, drawRate=draw/wSum, lowRate=low/wSum;
+  return {
+    n, gfpg, gapg, ppg, drawRate, lowRate,
+    eloAdj: clamp(((ppg/3)-0.5)*120,-45,45),
+    attackAdj: clamp((gfpg-1.25)*5,-8,8),
+    defenseAdj: clamp((1.25-gapg)*5,-8,8)
+  };
+}
+function h2hContext(aId,bId,latestDate){
+  if(!historicalMatches) return {n:0,eloAdjA:0,alphaAdj:0};
+  let wSum=0,ptsA=0,low=0,n=0;
+  for(const m of historicalMatches){
+    if(m.date<"2000-01-01" || m.date>latestDate) continue;
+    const home=resolveName(m.home), away=resolveName(m.away);
+    if(!((home===aId&&away===bId)||(home===bId&&away===aId))) continue;
+    const aGoals=home===aId?m.hs:m.as, bGoals=home===aId?m.as:m.hs;
+    const w=Math.exp(-daysBetween(m.date,latestDate)/1095);
+    wSum+=w; ptsA+=w*(aGoals>bGoals?3:(aGoals===bGoals?1:0)); low+=w*((aGoals+bGoals)<=2?1:0); n++;
+  }
+  if(!wSum || n<2) return {n,eloAdjA:0,alphaAdj:0};
+  const share=ptsA/(3*wSum), lowRate=low/wSum;
+  return {
+    n,
+    eloAdjA: clamp((share-0.5)*18*Math.log1p(n),-18,18),
+    alphaAdj: clamp((0.52-lowRate)*0.10,-0.08,0.08),
+    lowRate
+  };
+}
+function buildPairContext(aId,bId){
+  if(!historicalMatches) return null;
+  const latestDate=historicalMatches.reduce((mx,m)=>m.date>mx?m.date:mx,"1900-01-01");
+  const ca=teamHistoryContext(aId,latestDate), cb=teamHistoryContext(bId,latestDate), hh=h2hContext(aId,bId,latestDate);
+  return {latestDate,a:ca,b:cb,h2h:hh,
+    alphaAdj: clamp((((ca.lowRate+cb.lowRate)/2)-0.52)*-0.18 + (hh.alphaAdj||0), -0.16, 0.12),
+    rhoAdj: clamp((((ca.drawRate+cb.drawRate)/2)-0.26)*-0.25, -0.08, 0.08)
+  };
+}
+function contextHtml(ctx,a,b){
+  if(!ctx) return "";
+  const row=(name,c)=>`<tr><td>${name}</td><td>${c.n}</td><td>${c.gfpg?c.gfpg.toFixed(2):"-"}</td><td>${c.gapg?c.gapg.toFixed(2):"-"}</td><td>${c.ppg?c.ppg.toFixed(2):"-"}</td><td>${pc(c.drawRate||0,1)}</td><td>${pc(c.lowRate||0,1)}</td></tr>`;
+  return `<h3>按按钮加载的历史上下文</h3>
+    <div class="note">已用完整历史赛果滚动重算 Elo/Attack/Defense，最新样本日期 ${ctx.latestDate}；不使用市场赔率。两队近期修正：${a.c} Elo ${ctx.a.eloAdj.toFixed(1)}，${b.c} Elo ${ctx.b.eloAdj.toFixed(1)}，交锋 ${ctx.h2h.n} 场。</div>
+    ${table(["球队","近期场次","GF/场","GA/场","积分/场","平局率","≤2球率"],[row(a.c,ctx.a),row(b.c,ctx.b)].map(x=>x.match(/<td>.*?<\/td>/g).map(y=>y.replace(/<\/?td>/g,""))))}`;
+}
+function renderPredict(ctx=null){
+  const modelKey=document.getElementById("modelChoice").value;
+  const p=deepParams(PARAMS[modelKey]);
+  const state=(modelKey==="dc"||modelKey==="fitted")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  let a=cloneTeam(state[document.getElementById("teamA").value]), b=cloneTeam(state[document.getElementById("teamB").value]);
+  const out=document.getElementById("result");
+  if(!a||!b||a.id===b.id){out.innerHTML='<p class="note">请选择两支不同球队。</p>';return;}
+  if(ctx){
+    const histState=historicalCurrentRatings(p,ctx.latestDate);
+    a=cloneTeam(histState[a.id]||a); b=cloneTeam(histState[b.id]||b);
+    a.elo+=ctx.a.eloAdj+(ctx.h2h.eloAdjA||0); b.elo+=ctx.b.eloAdj-(ctx.h2h.eloAdjA||0);
+    a.attack+=ctx.a.attackAdj; a.defense+=ctx.a.defenseAdj;
+    b.attack+=ctx.b.attackAdj; b.defense+=ctx.b.defenseAdj;
+    p.alpha+=ctx.alphaAdj; p.rho=clamp((p.rho||0)+ctx.rhoAdj,-0.18,0.10);
+  }
+  const r=scoreMatrix(a,b,p,{neutral:true,importance:1});
+  const advA=r.advA, advB=1-advA;
+  const top=r.cells.slice(0,5).map(s=>`<span class="chip">${a.c} ${s.i}-${s.j} ${b.c} · ${pc(s.pr,1)}</span>`).join("");
+  out.innerHTML=`
+    <div class="teams">
+      <div class="team"><div class="name">${a.c}</div><div class="elo">Elo ${Math.round(a.elo)} · ${a.id}</div><div class="adv" style="color:var(--good)">${pc(advA,0)}</div><div class="note">淘汰晋级</div></div>
+      <div class="vs">vs</div>
+      <div class="team"><div class="name">${b.c}</div><div class="elo">Elo ${Math.round(b.elo)} · ${b.id}</div><div class="adv" style="color:var(--red)">${pc(advB,0)}</div><div class="note">淘汰晋级</div></div>
+    </div>
+    <div class="bar"><div style="width:${pc(r.w)};background:var(--good)"></div><div style="width:${pc(r.d)};background:#b8ad9b"></div><div style="width:${pc(r.l)};background:var(--red)"></div></div>
+    <div class="wdl"><span>${a.c} 90分钟胜 ${pc(r.w,0)}</span><span>平 ${pc(r.d,0)}</span><span>${b.c} 90分钟胜 ${pc(r.l,0)}</span></div>
+    <div class="xg">预期进球 <b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b> · 点球边 ${a.c} ${pc(r.penA,0)}</div>
+    <div class="note">最可能比分</div><div class="chips">${top}</div>
+    ${contextHtml(ctx,a,b)}`;
+}
+async function renderPredictWithHistory(){
+  const out=document.getElementById("result");
+  const aId=document.getElementById("teamA").value, bId=document.getElementById("teamB").value;
+  renderPredict();
+  out.insertAdjacentHTML("afterbegin","<div class='note'>正在加载两队历史战况做上下文校准...</div>");
+  try{
+    if(!historicalMatches) await loadHistoricalData();
+    renderPredict(buildPairContext(aId,bId));
+  }catch(e){
+    out.insertAdjacentHTML("afterbegin",`<div class="warn">历史战况加载失败，已保留基础预测：${escapeHtml(e.message)}</div>`);
+  }
+}
+
+function classifyTournament(t){
+  const s=String(t||"").toLowerCase();
+  if(s==="fifa world cup")return "worldcup";
+  if(s.includes("qualification")&&s.includes("fifa world cup"))return "wcq";
+  if(s.includes("qualification"))return "qualifier";
+  if(s.includes("friendly"))return "friendly";
+  if(["uefa euro","copa america","african cup of nations","afc asian cup","concacaf championship","concacaf gold cup","ofc nations cup"].some(x=>s.includes(x)))return "continental";
+  if(s.includes("nations league"))return "nations";
+  return "other";
+}
+function importanceOf(cat){
+  return {friendly:-0.5,qualifier:0.2,wcq:0.35,continental:0.75,worldcup:1,nations:0.15,other:0}[cat]||0;
+}
+function parseCsvLine(line){
+  const out=[]; let cur="",q=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'&&line[i+1]==='"'){cur+='"';i++;continue}
+    if(ch==='"'){q=!q;continue}
+    if(ch===","&&!q){out.push(cur);cur="";continue}
+    cur+=ch;
+  }
+  out.push(cur); return out;
+}
+function parseResultsCsv(text){
+  const lines=text.trim().split(/\r?\n/), head=parseCsvLine(lines[0]);
+  const idx=Object.fromEntries(head.map((h,i)=>[h,i]));
+  return lines.slice(1).map(line=>{
+    const p=parseCsvLine(line);
+    return {date:p[idx.date],home:p[idx.home_team],away:p[idx.away_team],
+      hs:+p[idx.home_score],as:+p[idx.away_score],tournament:p[idx.tournament],
+      country:p[idx.country],neutral:String(p[idx.neutral]).toUpperCase()==="TRUE"};
+  }).filter(m=>m.date&&Number.isFinite(m.hs)&&Number.isFinite(m.as)).sort((a,b)=>a.date.localeCompare(b.date));
+}
+async function loadHistoricalData(){
+  const status=document.getElementById("btStatus");
+  status.textContent="正在从 GitHub raw 加载国家队历史赛果...";
+  const res=await fetch(DATA_URL,{cache:"force-cache"});
+  if(!res.ok) throw new Error("历史数据加载失败: HTTP "+res.status);
+  historicalMatches=parseResultsCsv(await res.text());
+  status.textContent=`已加载 ${historicalMatches.length.toLocaleString()} 场国家队比赛。数据源不含 xG、阵容、伤停。`;
+}
+
+function shouldEval(m,start,end,filter){
+  if(m.date<start||m.date>end)return false;
+  const cat=classifyTournament(m.tournament);
+  if(filter==="all")return true;
+  return cat===filter || (filter==="qualifier"&&cat==="wcq");
+}
+function computeMetrics(records){
+  const n=records.length;
+  const acc={n,logLoss:0,brier:0,scoreNll:0,scoreHit:0,drawPred:0,drawAct:0,p00:0,a00:0,p11:0,a11:0,over15p:0,over15a:0,over25p:0,over25a:0,over35p:0,over35a:0,outside:0};
+  const calBins=[[.5,.6],[.6,.7],[.7,.8],[.8,.9],[.9,1.01]].map(b=>({name:`${Math.round(b[0]*100)}-${Math.round(Math.min(b[1],1)*100)}%`,lo:b[0],hi:b[1],n:0,p:0,a:0}));
+  const eloBins=[[-9999,50],[50,150],[150,300],[300,500],[500,9999]].map(b=>({name:`${b[0]===-9999?"0":b[0]}-${b[1]===9999?"500+":b[1]}`,lo:b[0],hi:b[1],n:0,ll:0}));
+  const byCat={}, byRegion={};
+  for(const r of records){
+    const y=[r.homeWin?1:0,r.draw?1:0,r.awayWin?1:0], p=[r.pred.w,r.pred.d,r.pred.l];
+    const prob=Math.max(EPS,p[y.findIndex(v=>v===1)]);
+    acc.logLoss+=-Math.log(prob);
+    acc.brier+=(p[0]-y[0])**2+(p[1]-y[1])**2+(p[2]-y[2])**2;
+    const exact=r.pred.cells.find(c=>c.i===r.hs&&c.j===r.as);
+    if(exact) acc.scoreNll+=-Math.log(Math.max(EPS,exact.pr)); else {acc.scoreNll+=-Math.log(EPS);acc.outside++;}
+    if(r.pred.cells[0].i===r.hs&&r.pred.cells[0].j===r.as)acc.scoreHit++;
+    acc.drawPred+=r.pred.d; acc.drawAct+=r.draw?1:0;
+    acc.p00+=r.pred.p00; acc.a00+=(r.hs===0&&r.as===0)?1:0;
+    acc.p11+=r.pred.p11; acc.a11+=(r.hs===1&&r.as===1)?1:0;
+    acc.over15p+=r.pred.over15; acc.over15a+=(r.hs+r.as>1.5)?1:0;
+    acc.over25p+=r.pred.over25; acc.over25a+=(r.hs+r.as>2.5)?1:0;
+    acc.over35p+=r.pred.over35; acc.over35a+=(r.hs+r.as>3.5)?1:0;
+    const fav=Math.max(r.pred.w,r.pred.l), favWon=(r.pred.w>=r.pred.l?r.homeWin:r.awayWin)?1:0;
+    calBins.forEach(b=>{if(fav>=b.lo&&fav<b.hi){b.n++;b.p+=fav;b.a+=favWon;}});
+    const ed=Math.abs(r.eloDiff);
+    eloBins.forEach(b=>{if(ed>=b.lo&&ed<b.hi){b.n++;b.ll+=-Math.log(prob);}});
+    const cat=r.cat; if(!byCat[cat])byCat[cat]={n:0,ll:0}; byCat[cat].n++; byCat[cat].ll+=-Math.log(prob);
+    const reg=r.regionPair; if(!byRegion[reg])byRegion[reg]={n:0,ll:0}; byRegion[reg].n++; byRegion[reg].ll+=-Math.log(prob);
+  }
+  Object.keys(acc).forEach(k=>{if(k!=="n"&&k!=="outside")acc[k]/=Math.max(1,n)});
+  return {summary:acc,calBins,eloBins,byCat,byRegion};
+}
+function runOneBacktest(modelKey,params,matches,start,end,filter,limit){
+  const state={};
+  let records=[],tested=0;
+  for(const m of matches){
+    const cat=classifyTournament(m.tournament);
+    const h=resolveName(m.home), a=resolveName(m.away);
+    const H=ensureTeam(state,h), A=ensureTeam(state,a);
+    const opts={neutral:m.neutral,importance:importanceOf(cat)};
+    if(shouldEval(m,start,end,filter)&&tested<limit){
+      const pred=scoreMatrix(H,A,params,opts);
+      records.push({date:m.date,hs:m.hs,as:m.as,pred,cat,homeWin:m.hs>m.as,draw:m.hs===m.as,awayWin:m.hs<m.as,eloDiff:H.elo-A.elo,
+        regionPair:(H.region||"Unknown")+" vs "+(A.region||"Unknown")});
+      tested++;
+    }
+    if(m.date<=end) updateState(state,h,a,m.hs,m.as,params,opts);
+  }
+  return {model:modelKey,params,records,metrics:computeMetrics(records)};
+}
+function runBacktestAll(){
+  if(!historicalMatches) throw new Error("请先加载历史数据。");
+  const start=document.getElementById("btStart").value.trim(), end=document.getElementById("btEnd").value.trim();
+  const filter=document.getElementById("btFilter").value, limit=+document.getElementById("btLimit").value||9000;
+  const models=["elo","ad","current","fitted","dc"];
+  lastReports=models.map(k=>runOneBacktest(k,deepParams(PARAMS[k]),historicalMatches,start,end,filter,limit));
+  renderReports();
+  document.getElementById("btStatus").textContent=`完成：${start} 至 ${end}，筛选 ${filter}，每模型 ${lastReports[0].records.length.toLocaleString()} 场。`;
+}
+function fitParams(){
+  if(!historicalMatches) throw new Error("请先加载历史数据。");
+  const start=document.getElementById("btStart").value.trim(), end=document.getElementById("btEnd").value.trim();
+  const filter=document.getElementById("btFilter").value;
+  const trainLimit=Math.min(+document.getElementById("btLimit").value||240,240);
+  const fitStart = start < "2018-01-01" ? "2018-01-01" : start;
+  const fitMatchesAll = historicalMatches.filter(m => m.date >= fitStart && m.date <= end);
+  const fitMatches = fitMatchesAll.slice(Math.max(0, fitMatchesAll.length - 1800));
+  const alphas=[1.20,1.32].map(Math.log);
+  const betaAD=[1/55,1/38];
+  const betaElo=[1/1400,1/1000];
+  const ks=[18];
+  const rhos=[0,-0.08];
+  let best={loss:Infinity,p:null,checked:0};
+  for(const alpha of alphas)for(const ba of betaAD)for(const be of betaElo)for(const k of ks)for(const rho of rhos){
+    const p={...deepParams(PARAMS.current),alpha,betaAD:ba,betaElo:be,k,adK:ba===0?0:0.25,minLambda:0.08,maxLambda:3.9,rho,scoreMax:8,penEloScale:520,penRatingScale:12};
+    const rep=runOneBacktest("fit",p,fitMatches,fitStart,end,filter,trainLimit);
+    const loss=rep.metrics.summary.logLoss+0.35*rep.metrics.summary.scoreNll;
+    best.checked++;
+    if(loss<best.loss)best={loss,p,checked:best.checked,rep};
+  }
+  PARAMS.fitted={...best.p,rho:0,name:"轻量拟合普通 Poisson"};
+  PARAMS.dc={...best.p,name:"轻量拟合 Dixon-Coles"};
+  localStorage.setItem("wc_model_params",JSON.stringify({fitted:PARAMS.fitted,dc:PARAMS.dc}));
+  document.getElementById("btStatus").textContent=`快速参数试探完成：窗口 ${fitStart} 至 ${end}，最多 ${trainLimit} 场，检查 ${best.checked} 组参数。最优 alpha=${best.p.alpha.toFixed(4)}, betaAD=${best.p.betaAD.toFixed(5)}, betaElo=${best.p.betaElo.toFixed(5)}, K=${best.p.k}, rho=${best.p.rho}。如需严肃结论，请用脚本离线跑更大网格。`;
+  renderParams();
+  renderPredict();
+}
+
+function table(headers,rows){
+  return `<table><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
+}
+function renderReports(){
+  if(!lastReports)return;
+  const rows=lastReports.map(r=>{
+    const m=r.metrics.summary;
+    return [PARAMS[r.model].name,r.records.length,m.logLoss.toFixed(4),m.brier.toFixed(4),m.scoreNll.toFixed(4),pc(m.scoreHit,2),pc(m.drawPred,1),pc(m.drawAct,1),pc(m.p00,2),pc(m.a00,2),pc(m.p11,2),pc(m.a11,2),m.outside];
+  });
+  document.getElementById("metricsOut").innerHTML=table(["模型","场次","1X2 Log Loss","Brier","Score NLL","最高比分命中","预测平局","真实平局","预测0-0","真实0-0","预测1-1","真实1-1","越界比分"],rows);
+  const dc=lastReports.find(r=>r.model==="dc")||lastReports[0];
+  document.getElementById("calibrationOut").innerHTML=table(["预测热门胜率分桶","场次","平均预测","真实热门胜率","误差"],dc.metrics.calBins.map(b=>[b.name,b.n,b.n?pc(b.p/b.n,1):"-",b.n?pc(b.a/b.n,1):"-",b.n?pc((b.p-b.a)/b.n,1):"-"]));
+  const catRows=Object.entries(dc.metrics.byCat).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>[k,v.n,(v.ll/v.n).toFixed(4)]);
+  const eloRows=dc.metrics.eloBins.map(b=>[b.name,b.n,b.n?(b.ll/b.n).toFixed(4):"-"]);
+  const regRows=Object.entries(dc.metrics.byRegion).filter(x=>x[1].n>=20).sort((a,b)=>b[1].n-a[1].n).slice(0,10).map(([k,v])=>[k,v.n,(v.ll/v.n).toFixed(4)]);
+  document.getElementById("sliceOut").innerHTML=
+    "<div class='twocol'><div>"+table(["赛事类型","场次","Log Loss"],catRows)+"</div><div>"+table(["Elo差区间","场次","Log Loss"],eloRows)+"</div></div><h3>已知大洲/区域对阵 Top10</h3>"+table(["区域组合","场次","Log Loss"],regRows);
+}
+function renderAudit(){
+  const kv=[
+    ["进入预测", "Elo、Attack、Defense、Penalty、已录入赛果、模型参数"],
+    ["仅展示", "中文队名、区域标签、数据来源说明、部分 UI 文案"],
+    ["当前预期进球", "log(lambda)=alpha + betaAD*(AttackA-DefenseB)+betaElo*(EloA-EloB)+可选赛地/重要性项"],
+    ["当前比分矩阵", "0-8 独立 Poisson；Dixon-Coles 版本对 0-0/1-0/0-1/1-1 加 tau 修正并归一化"],
+    ["Elo 更新", "K*(actual-expected)，零和更新双方"],
+    ["Attack/Defense 更新", "按赛后进球残差更新：进攻超预期提升本队 Attack，防守方 Defense 下降；反之亦然"],
+    ["Penalty", "logistic((Elo差/penEloScale)+(Penalty差/penRatingScale))"],
+    ["是否拟合", "原始 current 参数未历史拟合；fitted/dc 参数可由本页 rolling backtest 粗网格拟合"]
+  ];
+  document.getElementById("auditKv").innerHTML=kv.map(x=>`<div>${x[0]}</div><div>${x[1]}</div>`).join("");
+  document.getElementById("fieldTable").innerHTML=table(["字段","是否入模","说明"],[
+    ["Elo","是","实力主轴；需用回测判断是否与 Attack/Defense 重复放大强队"],
+    ["Attack/Defense","是","攻防拆分；如果其构造已含 Elo/FIFA/身价，则与 Elo 存在共线风险"],
+    ["Power Score","否","当前页面未直接使用；原工作簿中可能用于生成 Attack/Defense"],
+    ["FIFA Rank","否","不直接入模"],
+    ["身价","否","页面当前不直接入模；阵容层第二轮再加"],
+    ["xG/xGA","否","当前无可靠覆盖，不能伪造"],
+    ["市场赔率/Polymarket","否","明确禁止作为输入"]
+  ]);
+}
+function renderParams(){
+  const rows=Object.entries(PARAMS).map(([k,p])=>[p.name,k,Math.exp(p.alpha).toFixed(3),p.betaAD.toFixed(6),p.betaElo.toFixed(6),p.k,p.adK,p.minLambda,p.maxLambda,p.scoreMax,p.rho,p.penEloScale,p.penRatingScale]);
+  document.getElementById("paramsOut").innerHTML=table(["模型","key","base_goal_rate","betaAD","betaElo","Elo K","AD K","xG下限","xG上限","比分截断","DC rho","点球Elo尺度","点球评级尺度"],rows);
+}
+function init(){
+  const saved=localStorage.getItem("wc_model_params");
+  if(saved){try{const p=JSON.parse(saved); if(p.fitted)PARAMS.fitted=p.fitted; if(p.dc)PARAMS.dc=p.dc;}catch{}}
+  const R=stateFromSnapshot(PARAMS.dc)||currentRatings(PARAMS.dc);
+  const list=Object.values(R).sort((a,b)=>b.elo-a.elo);
+  const A=document.getElementById("teamA"), B=document.getElementById("teamB");
+  list.forEach(x=>{
+    const o=document.createElement("option");o.value=x.id;o.textContent=`${x.c} · Elo ${Math.round(x.elo)}`;A.appendChild(o);
+    B.appendChild(o.cloneNode(true));
+  });
+  A.value="Spain";B.value="France";
+  renderPredict();renderAudit();renderParams();
+  document.getElementById("go").onclick=renderPredict;
+  document.getElementById("swap").onclick=()=>{const t=A.value;A.value=B.value;B.value=t;renderPredict();};
+  A.onchange=B.onchange=document.getElementById("modelChoice").onchange=renderPredict;
+  document.querySelectorAll(".tab").forEach(btn=>btn.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+    btn.classList.add("active");document.getElementById("view-"+btn.dataset.view).classList.add("active");
+  });
+  document.getElementById("loadData").onclick=async()=>{try{await loadHistoricalData();}catch(e){document.getElementById("btStatus").innerHTML=`<span class="bad">${escapeHtml(e.message)}</span>`;}};
+  document.getElementById("runBacktest").onclick=()=>{try{runBacktestAll();}catch(e){document.getElementById("btStatus").innerHTML=`<span class="bad">${escapeHtml(e.message)}</span>`;}};
+  document.getElementById("fitParams").onclick=()=>{try{fitParams();}catch(e){document.getElementById("btStatus").innerHTML=`<span class="bad">${escapeHtml(e.message)}</span>`;}};
+  const dates=RESULTS.map(m=>m.date).sort();
+  const postSnapshot=RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate);
+  const latestPost=postSnapshot.map(m=>m.date).sort().at(-1)||"-";
+  document.getElementById("foot").innerHTML=`当前内嵌 2026 赛果 ${RESULTS.length} 场；快照截止 ${MODEL_SNAPSHOT.latestDate}；快照后增量 ${postSnapshot.length} 场，更新到 ${latestPost}。历史回测数据在线加载，不含 xG/阵容/伤停。`;
+}
+init();
+</script>
+</body>
+</html>
