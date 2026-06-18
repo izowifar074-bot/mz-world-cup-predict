@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>2026 世界杯预测模型实验室</title>
 <style>
   *{box-sizing:border-box}
@@ -184,6 +187,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
+const APP_VERSION = "2026-06-18-fix2";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -1132,7 +1136,7 @@ function init(){
   const dates=RESULTS.map(m=>m.date).sort();
   const postSnapshot=RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate);
   const latestPost=postSnapshot.map(m=>m.date).sort().at(-1)||"-";
-  document.getElementById("foot").innerHTML=`当前内嵌 2026 赛果 ${RESULTS.length} 场；快照截止 ${MODEL_SNAPSHOT.latestDate}；快照后增量 ${postSnapshot.length} 场，更新到 ${latestPost}。历史回测数据在线加载，不含 xG/阵容/伤停。`;
+  document.getElementById("foot").innerHTML=`版本 ${APP_VERSION}；当前内嵌 2026 赛果 ${RESULTS.length} 场；快照截止 ${MODEL_SNAPSHOT.latestDate}；快照后增量 ${postSnapshot.length} 场，更新到 ${latestPost}。历史回测数据在线加载，不含 xG/阵容/伤停。`;
 }
 init();
 </script>
