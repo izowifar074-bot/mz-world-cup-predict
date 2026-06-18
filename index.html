@@ -26,11 +26,23 @@
   select,input,button{font:inherit}
   select,input{width:100%;padding:14px 16px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--ink);
     min-height:58px;font-size:17px}
+  input[type="checkbox"]{width:auto;min-height:auto;padding:0}
   .model-choice{color:var(--red);font-weight:680;text-align:center;text-align-last:center;background:var(--paper2)}
   .btnrow{display:block;margin-top:14px}
   button.primary,button.secondary{border:0;border-radius:8px;padding:13px 15px;cursor:pointer;font-weight:720;width:100%;font-size:17px}
   button.primary{background:var(--red);color:#fff}
   button.secondary{background:var(--paper2);color:var(--ink);border:1px solid var(--line)}
+  button.extra-toggle{margin-top:10px;color:var(--red);background:#fffaf5}
+  button.extra-toggle.active{background:var(--ink);border-color:var(--ink);color:#fff}
+  .extra-panel{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fffaf5;padding:12px}
+  .extra-panel[hidden]{display:none}
+  .extra-row{border-top:1px solid #eadfce;padding-top:11px;margin-top:11px}
+  .extra-row:first-child{border-top:0;padding-top:0;margin-top:0}
+  .check{display:flex;gap:8px;align-items:flex-start;font-size:14px;font-weight:700;color:var(--ink)}
+  .check input{margin-top:4px}
+  .mini{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+  .mini label{font-size:11px;color:var(--muted)}
+  .mini select{min-height:40px;padding:8px 9px;font-size:13px;margin-top:3px}
   button:disabled{opacity:.55;cursor:wait}
   .note{font-size:12px;color:var(--muted);margin-top:9px}
   .result{margin-top:0}
@@ -49,6 +61,7 @@
   .xg{text-align:center;margin:22px 0 18px;color:var(--muted);font-size:15px}
   .xg b{color:var(--ink)}
   .pen-note{text-align:center;margin:-10px 0 18px;color:#9a9183;font-size:12px}
+  .extra-note{text-align:center;margin:-10px 0 18px;color:var(--red);font-size:12px}
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
@@ -112,6 +125,55 @@
       </div>
       <div class="btnrow">
         <button class="primary" id="go">预测对阵</button>
+        <button class="secondary extra-toggle" id="extraToggle" type="button" aria-expanded="false">考虑额外信息（实验性）：关</button>
+      </div>
+      <div class="extra-panel" id="extraPanel" hidden>
+        <div class="extra-row">
+          <label class="check"><input type="checkbox" id="useVenue"> 主场 / 东道主</label>
+          <div class="mini">
+            <label>场地归属
+              <select id="venueMode">
+                <option value="auto">自动识别 2026 东道主</option>
+                <option value="neutral">中立场</option>
+                <option value="hostA">第一队主场/东道主</option>
+                <option value="hostB">第二队主场/东道主</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="extra-row">
+          <label class="check"><input type="checkbox" id="useLineup"> 阵容伤停手动修正</label>
+          <div class="mini">
+            <label>第一队进攻缺损
+              <select id="aAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+            </label>
+            <label>第一队防守缺损
+              <select id="aDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+            </label>
+            <label>第二队进攻缺损
+              <select id="bAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+            </label>
+            <label>第二队防守缺损
+              <select id="bDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+            </label>
+          </div>
+        </div>
+        <div class="extra-row">
+          <label class="check"><input type="checkbox" id="useRegion"> 洲际强度校准</label>
+        </div>
+        <div class="extra-row">
+          <label class="check"><input type="checkbox" id="useWorldCupForm"> 本届世界杯表现加权</label>
+          <div class="mini">
+            <label>加权强度
+              <select id="worldCupWeight">
+                <option value="medium">中等</option>
+                <option value="light">轻微</option>
+                <option value="strong">强</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div class="note">实验项会改变预期进球，因此会改变 90 分钟最可能比分。点球模式只影响晋级概率。</div>
       </div>
     </div>
     <div class="panel result-panel">
@@ -122,7 +184,7 @@
   <details>
     <summary>模型说明</summary>
     <div class="explain">
-      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。新增的中性点球和历史点球是实验方式；历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
+      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。实验增强会改变预期进球和 90 分钟比分矩阵；点球模式只影响平局后的晋级分配。历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
     </div>
   </details>
   <footer id="foot"></footer>
@@ -130,7 +192,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-18-penalty-exp";
+const APP_VERSION = "2026-06-18-extra-info-exp";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -1148,8 +1210,8 @@ function actual(gf,ga){return gf>ga?1:(gf<ga?0:0.5);}
 function lambdas(a,b,p,opts={}){
   const hostA=opts.hostA?1:0, hostB=opts.hostB?1:0, neutral=opts.neutral?1:0, importance=opts.importance||0;
   const hostCoef=p.hostCoef||0, neutralCoef=p.neutralCoef||0, importanceCoef=p.importanceCoef||0;
-  const logA=p.alpha+p.betaAD*(a.attack-b.defense)+p.betaElo*(a.elo-b.elo)+hostCoef*hostA-hostCoef*hostB+neutralCoef*neutral+importanceCoef*importance;
-  const logB=p.alpha+p.betaAD*(b.attack-a.defense)+p.betaElo*(b.elo-a.elo)+hostCoef*hostB-hostCoef*hostA+neutralCoef*neutral+importanceCoef*importance;
+  const logA=p.alpha+p.betaAD*(a.attack-b.defense)+p.betaElo*(a.elo-b.elo)+hostCoef*hostA-hostCoef*hostB+neutralCoef*neutral+importanceCoef*importance+(opts.lambdaLogA||0);
+  const logB=p.alpha+p.betaAD*(b.attack-a.defense)+p.betaElo*(b.elo-a.elo)+hostCoef*hostB-hostCoef*hostA+neutralCoef*neutral+importanceCoef*importance+(opts.lambdaLogB||0);
   return [clamp(Math.exp(logA),p.minLambda,p.maxLambda),clamp(Math.exp(logB),p.minLambda,p.maxLambda)];
 }
 function tauDC(i,j,la,lb,rho){
@@ -1178,6 +1240,89 @@ function penaltyModeLabel(p){
   if(p.penaltyMode==="history") return `平局后按历史点球实验值处理：${PENALTY_HISTORY.best.n} 场点球大战拟合`;
   return "平局后按原点球/加时先验处理";
 }
+const HOST_TEAMS = new Set(["USA","Canada","Mexico"]);
+const REGION_CALIBRATION = {
+  "Europe":0.035,
+  "Europe/Middle East":0.020,
+  "Latin America":0.030,
+  "North America":0.006,
+  "East Asia":-0.006,
+  "North Africa":-0.006,
+  "West Africa":-0.008,
+  "Central Africa":-0.016,
+  "Southern Africa":-0.018,
+  "Middle East":-0.022,
+  "Central Asia":-0.025,
+  "Oceania/Asia":-0.016,
+  "Oceania":-0.034,
+  "Caribbean":-0.038
+};
+function extraEnabled(){return document.getElementById("extraToggle")?.dataset.enabled==="1";}
+function checkVal(id){return !!document.getElementById(id)?.checked;}
+function selectVal(id,fallback=""){return document.getElementById(id)?.value ?? fallback;}
+function pctVal(id){return +(selectVal(id,"0"))||0;}
+function getExtraConfig(){
+  const enabled=extraEnabled();
+  return {
+    enabled,
+    useVenue:enabled&&checkVal("useVenue"),
+    venueMode:selectVal("venueMode","auto"),
+    useLineup:enabled&&checkVal("useLineup"),
+    aAttackLoss:pctVal("aAttackLoss"),
+    aDefenseLoss:pctVal("aDefenseLoss"),
+    bAttackLoss:pctVal("bAttackLoss"),
+    bDefenseLoss:pctVal("bDefenseLoss"),
+    useRegion:enabled&&checkVal("useRegion"),
+    useWorldCupForm:enabled&&checkVal("useWorldCupForm"),
+    worldCupWeight:selectVal("worldCupWeight","medium")
+  };
+}
+function regionScore(team){return REGION_CALIBRATION[team.region] ?? 0;}
+function lossText(v){return `${Math.round(v*100)}%`;}
+function applyWorldCupFormBoost(state,p,extra){
+  if(!extra.enabled||!extra.useWorldCupForm) return state;
+  const mult={light:0.25,medium:0.45,strong:0.75}[extra.worldCupWeight] ?? 0.45;
+  RESULTS.forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,p,{neutral:true,importance:1,updateWeight:mult}));
+  return state;
+}
+function buildPredictionOptions(a,b,p,extra){
+  const opts={neutral:true,importance:1,lambdaLogA:0,lambdaLogB:0,applied:[]};
+  if(!extra.enabled) return opts;
+  if(extra.useVenue){
+    let mode=extra.venueMode;
+    if(mode==="auto"){
+      const aHost=HOST_TEAMS.has(a.id), bHost=HOST_TEAMS.has(b.id);
+      mode=(aHost&&!bHost)?"hostA":(bHost&&!aHost)?"hostB":"neutral";
+    }
+    if(mode==="hostA"){opts.neutral=false;opts.hostA=true;opts.applied.push(`${a.c} 主场/东道主`);}
+    else if(mode==="hostB"){opts.neutral=false;opts.hostB=true;opts.applied.push(`${b.c} 主场/东道主`);}
+    else {opts.neutral=true;opts.applied.push("中立场");}
+  }
+  if(extra.useLineup){
+    opts.lambdaLogA += Math.log(clamp(1-extra.aAttackLoss,0.72,1)) + Math.log(1+extra.bDefenseLoss*0.9);
+    opts.lambdaLogB += Math.log(clamp(1-extra.bAttackLoss,0.72,1)) + Math.log(1+extra.aDefenseLoss*0.9);
+    const notes=[];
+    if(extra.aAttackLoss) notes.push(`${a.c}进攻-${lossText(extra.aAttackLoss)}`);
+    if(extra.aDefenseLoss) notes.push(`${a.c}防守-${lossText(extra.aDefenseLoss)}`);
+    if(extra.bAttackLoss) notes.push(`${b.c}进攻-${lossText(extra.bAttackLoss)}`);
+    if(extra.bDefenseLoss) notes.push(`${b.c}防守-${lossText(extra.bDefenseLoss)}`);
+    opts.applied.push(notes.length?`伤停：${notes.join("，")}`:"伤停：未填缺损");
+  }
+  if(extra.useRegion){
+    const delta=clamp(regionScore(a)-regionScore(b),-0.07,0.07);
+    opts.lambdaLogA+=delta; opts.lambdaLogB-=delta;
+    opts.applied.push(`洲际校准 ${delta>=0?"+":""}${(delta*100).toFixed(1)}%`);
+  }
+  if(extra.useWorldCupForm){
+    const label={light:"轻微",medium:"中等",strong:"强"}[extra.worldCupWeight]||"中等";
+    opts.applied.push(`本届世界杯表现加权：${label}`);
+  }
+  return opts;
+}
+function extraSummaryHtml(applied){
+  if(!applied||!applied.length) return "";
+  return `<div class="extra-note">实验增强：${applied.map(escapeHtml).join(" · ")}</div>`;
+}
 function scoreMatrix(a,b,p,opts={}){
   const [la,lb]=lambdas(a,b,p,opts);
   let cells=[],sum=0,w=0,d=0,l=0,over15=0,over25=0,over35=0,p00=0,p11=0;
@@ -1204,9 +1349,10 @@ function updateState(state,aId,bId,gf,ga,p,opts={}){
   const A=ensureTeam(state,aId), B=ensureTeam(state,bId);
   const pred=scoreMatrix(A,B,p,opts);
   const expA=expectedFromElo(A.elo,B.elo), actA=actual(gf,ga);
-  const dE=(p.k||0)*(actA-expA);
+  const weight=opts.updateWeight||1;
+  const dE=(p.k||0)*weight*(actA-expA);
   A.elo+=dE; B.elo-=dE;
-  const resA=gf-pred.la, resB=ga-pred.lb, k=p.adK||0;
+  const resA=gf-pred.la, resB=ga-pred.lb, k=(p.adK||0)*weight;
   A.attack+=k*resA; B.defense-=k*resA;
   B.attack+=k*resB; A.defense-=k*resB;
   A.attack=clamp(A.attack,50,105);B.attack=clamp(B.attack,50,105);
@@ -1300,7 +1446,9 @@ function renderPredict(ctx=null){
   const modelKey=(modelSelect&&PARAMS[modelSelect.value])?modelSelect.value:"dc";
   if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
   const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
+  const extra=getExtraConfig();
   let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  state=applyWorldCupFormBoost(state,p,extra);
   state=applyPenaltyMode(state,modelKey);
   let a=cloneTeam(state[document.getElementById("teamA").value]), b=cloneTeam(state[document.getElementById("teamB").value]);
   const out=document.getElementById("result");
@@ -1313,7 +1461,8 @@ function renderPredict(ctx=null){
     b.attack+=ctx.b.attackAdj; b.defense+=ctx.b.defenseAdj;
     p.alpha+=ctx.alphaAdj; p.rho=clamp((p.rho||0)+ctx.rhoAdj,-0.18,0.10);
   }
-  const r=scoreMatrix(a,b,p,{neutral:true,importance:1});
+  const predictionOpts=buildPredictionOptions(a,b,p,extra);
+  const r=scoreMatrix(a,b,p,predictionOpts);
   const advA=r.advA, advB=1-advA;
   const top=r.cells.slice(0,10).map(s=>`<span class="chip">${a.c} ${s.i}-${s.j} ${b.c} · ${pc(s.pr,1)}</span>`).join("");
   out.innerHTML=`
@@ -1325,8 +1474,9 @@ function renderPredict(ctx=null){
     <div class="bar"><div style="width:${pc(r.w)};background:var(--good)"></div><div style="width:${pc(r.d)};background:#b8ad9b"></div><div style="width:${pc(r.l)};background:var(--red)"></div></div>
     <div class="wdl"><span>${a.c}胜 ${pc(r.w,0)}</span><span>平 ${pc(r.d,0)}</span><span>${b.c}胜 ${pc(r.l,0)}</span></div>
     <div class="xg">预期进球 <b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b></div>
+    ${extraSummaryHtml(predictionOpts.applied)}
     <div class="pen-note">${penaltyModeLabel(p)}</div>
-    <div class="score-title">最可能比分</div><div class="chips">${top}</div>`;
+    <div class="score-title">90分钟最可能比分</div><div class="chips">${top}</div>`;
 }
 async function renderPredictWithHistory(){
   const out=document.getElementById("result");
@@ -1534,6 +1684,17 @@ function init(){
   A.value="Spain";B.value="France";document.getElementById("modelChoice").value="dc";
   renderPredict();
   document.getElementById("go").onclick=()=>renderPredict();
+  const extraToggle=document.getElementById("extraToggle"), extraPanel=document.getElementById("extraPanel");
+  extraToggle.onclick=()=>{
+    const enabled=extraToggle.dataset.enabled!=="1";
+    extraToggle.dataset.enabled=enabled?"1":"0";
+    extraToggle.classList.toggle("active",enabled);
+    extraToggle.setAttribute("aria-expanded",enabled?"true":"false");
+    extraToggle.textContent=`考虑额外信息（实验性）：${enabled?"开":"关"}`;
+    extraPanel.hidden=!enabled;
+    renderPredict();
+  };
+  document.querySelectorAll("#extraPanel input,#extraPanel select").forEach(el=>el.onchange=()=>renderPredict());
   A.onchange=()=>renderPredict();
   B.onchange=()=>renderPredict();
   document.getElementById("modelChoice").onchange=()=>renderPredict();
