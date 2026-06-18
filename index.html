@@ -21,6 +21,7 @@
   .sub{color:var(--muted);font-size:15px;max-width:480px}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:22px 22px 20px;
     box-shadow:0 3px 14px rgba(19,35,58,.06)}
+  .board{display:grid;gap:18px;align-items:start}
   .controls{display:grid;gap:12px;align-items:center}
   select,input,button{font:inherit}
   select,input{width:100%;padding:14px 16px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--ink);
@@ -32,7 +33,8 @@
   button.secondary{background:var(--paper2);color:var(--ink);border:1px solid var(--line)}
   button:disabled{opacity:.55;cursor:wait}
   .note{font-size:12px;color:var(--muted);margin-top:9px}
-  .result{margin-top:22px}
+  .result{margin-top:0}
+  .result-panel{min-height:240px}
   .teams{display:grid;grid-template-columns:1fr 34px 1fr;gap:8px;align-items:start;margin:6px 0 14px}
   .team{text-align:center}
   .team .name{font-weight:760;font-size:20px;line-height:1.25}
@@ -49,7 +51,7 @@
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    line-height:1.35;text-align:center}
   table{border-collapse:collapse;width:100%;font-size:12px;background:#fff}
   th,td{border:1px solid var(--line);padding:7px 8px;text-align:right;vertical-align:top}
   th{background:var(--ink);color:#fff;font-weight:650}
@@ -62,6 +64,20 @@
   summary{cursor:pointer;font-weight:680}
   .explain{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.75}
   footer{margin-top:34px;text-align:center;color:#98a1aa;font-size:12px}
+  @media(min-width:820px){
+    .wrap{max-width:1000px;padding:56px 40px 50px}
+    .board{grid-template-columns:minmax(310px,360px) minmax(0,1fr);gap:26px}
+    .controls-panel{position:sticky;top:28px}
+    .panel{padding:26px 26px 24px}
+    .result{margin-top:0}
+    .teams{grid-template-columns:1fr 48px 1fr;margin:10px 0 18px}
+    .team .name{font-size:23px}
+    .adv{font-size:48px}
+    .vs{padding-top:46px}
+    .chips{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+    h1{font-size:40px}
+    .sub{font-size:16px;max-width:620px}
+  }
   @media(max-width:420px){
     .wrap{padding:36px 18px 34px}
     h1{font-size:30px}
@@ -78,22 +94,26 @@
     <div class="sub">选择两支球队和预测方式，点击预测。结果在本机浏览器内实时计算，不使用博彩赔率或市场投票。</div>
   </header>
 
-  <section class="panel">
-    <div class="controls">
-      <select id="teamA" aria-label="第一支球队"></select>
-      <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
-        <option value="dc">预测方式：全量拟合 Dixon-Coles</option>
-        <option value="fitted">预测方式：全量拟合 Poisson</option>
-        <option value="current">预测方式：原始经验参数</option>
-        <option value="elo">预测方式：Elo-only</option>
-        <option value="ad">预测方式：攻防-only</option>
-      </select>
-      <select id="teamB" aria-label="第二支球队"></select>
+  <section class="board">
+    <div class="panel controls-panel">
+      <div class="controls">
+        <select id="teamA" aria-label="第一支球队"></select>
+        <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
+          <option value="dc">预测方式：全量拟合 Dixon-Coles（默认）</option>
+          <option value="fitted">预测方式：全量拟合 Poisson</option>
+          <option value="current">预测方式：原始经验参数</option>
+          <option value="elo">预测方式：Elo-only</option>
+          <option value="ad">预测方式：攻防-only</option>
+        </select>
+        <select id="teamB" aria-label="第二支球队"></select>
+      </div>
+      <div class="btnrow">
+        <button class="primary" id="go">预测对阵</button>
+      </div>
     </div>
-    <div class="btnrow">
-      <button class="primary" id="go">预测对阵</button>
+    <div class="panel result-panel">
+      <div class="result" id="result"></div>
     </div>
-    <div class="result" id="result"></div>
   </section>
 
   <details>
@@ -107,7 +127,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-18-lite-ui";
+const APP_VERSION = "2026-06-18-wide-ui";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
