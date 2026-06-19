@@ -100,15 +100,33 @@
   .group-card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px;font-size:12px}
   .group-card b{color:var(--ink)}
   .group-card ol{margin:6px 0 0;padding-left:20px;color:var(--muted)}
-  .bracket-scroll{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px}
-  .bracket-grid{display:grid;grid-template-columns:repeat(6,190px);gap:12px;align-items:start;min-width:1180px}
-  .bracket-col{display:grid;gap:8px}
-  .bracket-col h3{margin:0 0 4px;font-size:13px;color:var(--muted);font-weight:720;text-align:center}
-  .match-card{border:1px solid var(--line);border-radius:8px;background:var(--paper2);padding:8px;font-size:12px;min-height:76px}
-  .match-card .match-top{color:#a09483;font-size:11px;margin-bottom:5px}
-  .match-card .line{display:flex;justify-content:space-between;gap:8px}
-  .match-card .win{font-weight:760;color:var(--ink)}
-  .match-card .muted{color:var(--muted)}
+  .network-scroll{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px}
+  .network{position:relative;display:grid;grid-template-columns:178px 178px 178px 178px 220px 178px 178px 178px 178px;gap:14px;align-items:start;min-width:1680px;padding:4px 10px 18px}
+  .net-col{display:grid;align-items:start}
+  .net-title{height:26px;text-align:center;font-size:12px;font-weight:760;color:var(--muted)}
+  .net-list{display:grid}
+  .net-col.r32 .net-list{grid-template-rows:repeat(8,64px);gap:12px}
+  .net-col.r16 .net-list{grid-template-rows:repeat(4,64px);gap:88px;padding-top:38px}
+  .net-col.qf .net-list{grid-template-rows:repeat(2,64px);gap:328px;padding-top:114px}
+  .net-col.sf .net-list{grid-template-rows:64px;padding-top:266px}
+  .net-match{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--paper2);padding:7px 8px;font-size:11px;box-shadow:0 2px 7px rgba(19,35,58,.04)}
+  .left .net-match:after{content:"";position:absolute;right:-15px;top:50%;width:15px;border-top:1px solid #d8cfbf}
+  .right .net-match:before{content:"";position:absolute;left:-15px;top:50%;width:15px;border-top:1px solid #d8cfbf}
+  .net-match .match-top{color:#a09483;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+  .net-team{display:flex;justify-content:space-between;gap:8px;border-radius:6px;padding:2px 4px;color:var(--muted);line-height:1.25}
+  .net-team span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .net-team.win{font-weight:780;color:var(--ink);background:#fffaf5}
+  .net-note{color:#a09483;font-size:10px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .net-center{padding-top:178px;text-align:center}
+  .final-card{position:relative;border:1px solid var(--gold);border-radius:8px;background:#fffaf0;padding:10px;box-shadow:0 4px 16px rgba(200,164,92,.16)}
+  .final-card:before,.final-card:after{content:"";position:absolute;top:50%;width:24px;border-top:1px solid var(--gold)}
+  .final-card:before{left:-24px}.final-card:after{right:-24px}
+  .final-card .match-top{color:#9a7b3e;font-size:11px;margin-bottom:6px}
+  .champion-box{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,#fff8df,#fff);padding:14px 10px}
+  .champion-box .cup{font-size:12px;color:var(--muted)}
+  .champion-box b{display:block;font-size:26px;line-height:1.2;color:var(--red);margin-top:4px}
+  .group-drawer{margin-top:12px;color:var(--red);font-size:13px}
+  .group-drawer summary{font-weight:760}
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
@@ -307,7 +325,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-19-global-simulation";
+const APP_VERSION = "2026-06-19-network-bracket";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -1915,33 +1933,49 @@ function simulateTournament(){
     });
     rounds.push(list);
   });
-  return {ctx,groups:groupResult.groups,thirds:groupResult.thirds,rounds,champion:rounds.at(-1)[0].winner};
+  return {ctx,groups:groupResult.groups,thirds:groupResult.thirds,rounds,matchesById,champion:rounds.at(-1)[0].winner};
 }
-function matchCard(m){
+function networkMatchCard(m,extraClass=""){
   const aw=m.winner.id===m.a.id, bw=m.winner.id===m.b.id;
   const suffix=m.score.i===m.score.j?` · ${m.method}`:"";
-  return `<div class="match-card">
+  return `<div class="net-match ${extraClass}">
     <div class="match-top">${escapeHtml(m.stage)} · ${escapeHtml(m.label||"")}</div>
-    <div class="line ${aw?"win":"muted"}"><span>${escapeHtml(m.a.c)}</span><span>${m.score.i}</span></div>
-    <div class="line ${bw?"win":"muted"}"><span>${escapeHtml(m.b.c)}</span><span>${m.score.j}</span></div>
-    <div class="muted">${escapeHtml(m.winner.c)}晋级${suffix}</div>
+    <div class="net-team ${aw?"win":""}"><span>${escapeHtml(m.a.c)}</span><span>${m.score.i}</span></div>
+    <div class="net-team ${bw?"win":""}"><span>${escapeHtml(m.b.c)}</span><span>${m.score.j}</span></div>
+    <div class="net-note">${escapeHtml(m.winner.c)}晋级${suffix}</div>
   </div>`;
 }
 function groupCard(g,group){
   const items=group.table.map(t=>`<li>${escapeHtml(t.c)} ${t.p}分 ${t.gf}-${t.ga}</li>`).join("");
   return `<div class="group-card"><b>${g}组</b><ol>${items}</ol></div>`;
 }
+function networkColumn(title,cls,ids,matches,side){
+  return `<div class="net-col ${cls} ${side}"><div class="net-title">${title}</div><div class="net-list">${ids.map(id=>networkMatchCard(matches[id])).join("")}</div></div>`;
+}
 function renderTournament(){
   const out=document.getElementById("tourOutput");
   if(!out) return;
   const sim=simulateTournament();
-  const stageNames=["32强","16强","八强","半决赛","决赛"];
-  const bracket=sim.rounds.map((round,i)=>`<div class="bracket-col"><h3>${stageNames[i]}</h3>${round.map(matchCard).join("")}</div>`).join("")+
-    `<div class="bracket-col"><h3>冠军</h3><div class="champ-card"><div class="cup">模拟冠军</div><b>${escapeHtml(sim.champion.c)}</b><div class="note">Elo ${Math.round(sim.champion.elo)}</div></div></div>`;
+  const m=sim.matchesById, final=m[104];
+  const bracket=[
+    networkColumn("32强","r32",[73,75,74,77,83,84,81,82],m,"left"),
+    networkColumn("16强","r16",[89,90,93,94],m,"left"),
+    networkColumn("八强","qf",[97,98],m,"left"),
+    networkColumn("半决赛","sf",[101],m,"left"),
+    `<div class="net-center">
+      <div class="net-title">决赛 · 07-19</div>
+      ${networkMatchCard(final,"final-card")}
+      <div class="champion-box"><div class="cup">模拟冠军</div><b>${escapeHtml(sim.champion.c)}</b><div class="note">Elo ${Math.round(sim.champion.elo)}</div></div>
+    </div>`,
+    networkColumn("半决赛","sf",[102],m,"right"),
+    networkColumn("八强","qf",[99,100],m,"right"),
+    networkColumn("16强","r16",[91,92,95,96],m,"right"),
+    networkColumn("32强","r32",[76,78,79,80,86,88,85,87],m,"right")
+  ].join("");
   const groups=Object.entries(sim.groups).map(([g,x])=>groupCard(g,x)).join("");
-  out.innerHTML=`<div class="champ-card"><div class="cup">本次全局模拟冠军</div><b>${escapeHtml(sim.champion.c)}</b><div class="note">已使用当前预测方式、额外信息与 ${RESULTS.length} 场已录入赛果。</div></div>
-    <div class="group-grid">${groups}</div>
-    <div class="bracket-scroll"><div class="bracket-grid">${bracket}</div></div>`;
+  out.innerHTML=`<div class="network-scroll"><div class="network">${bracket}</div></div>
+    <div class="note">已使用当前预测方式、额外信息与 ${RESULTS.length} 场已录入赛果。横向滑动可查看完整网络。</div>
+    <details class="group-drawer"><summary>查看本次模拟小组排名</summary><div class="group-grid">${groups}</div></details>`;
 }
 async function renderPredictWithHistory(){
   const out=document.getElementById("result");
