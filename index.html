@@ -76,9 +76,10 @@
   .exhibition b{color:var(--ink)}
   .exhibition .recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .exhibition .pill{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff}
-  .sim-entry{margin-top:18px}
+  .sim-entry{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .sim-open{background:#fffaf5;color:var(--red)}
   .sim-dialog{width:min(680px,100%)}
+  .tour-dialog{width:min(1180px,100%);max-height:min(88vh,820px)}
   .sim-panel{padding:14px 16px 16px;background:#fffaf5}
   .sim-actions{padding:12px 0 0}
   .sim-output{margin-top:14px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:14px}
@@ -91,6 +92,23 @@
   .sim-events{margin-top:12px;display:grid;gap:7px}
   .sim-event{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:13px;color:var(--ink);align-items:start}
   .sim-event span:first-child{color:var(--muted);text-align:right}
+  .tour-output{margin-top:12px}
+  .champ-card{border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,#fff8df,#fff);padding:14px;text-align:center;margin-bottom:12px}
+  .champ-card .cup{font-size:12px;color:var(--muted)}
+  .champ-card b{display:block;font-size:28px;line-height:1.2;color:var(--red);margin-top:4px}
+  .group-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:12px 0}
+  .group-card{border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px;font-size:12px}
+  .group-card b{color:var(--ink)}
+  .group-card ol{margin:6px 0 0;padding-left:20px;color:var(--muted)}
+  .bracket-scroll{overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff;padding:12px}
+  .bracket-grid{display:grid;grid-template-columns:repeat(6,190px);gap:12px;align-items:start;min-width:1180px}
+  .bracket-col{display:grid;gap:8px}
+  .bracket-col h3{margin:0 0 4px;font-size:13px;color:var(--muted);font-weight:720;text-align:center}
+  .match-card{border:1px solid var(--line);border-radius:8px;background:var(--paper2);padding:8px;font-size:12px;min-height:76px}
+  .match-card .match-top{color:#a09483;font-size:11px;margin-bottom:5px}
+  .match-card .line{display:flex;justify-content:space-between;gap:8px}
+  .match-card .win{font-weight:760;color:var(--ink)}
+  .match-card .muted{color:var(--muted)}
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
@@ -127,6 +145,8 @@
     .panel{padding:20px 16px 18px}
     .chip{font-size:13px;padding:9px 10px}
     .wdl{font-size:12px}
+    .sim-entry{grid-template-columns:1fr 1fr}
+    .sim-open{font-size:15px;padding:12px 10px}
     .sim-meta{grid-template-columns:1fr}
     .sim-score{font-size:25px}
   }
@@ -226,7 +246,8 @@
   </section>
 
   <section class="sim-entry">
-    <button class="secondary sim-open" id="simOpen" type="button">战况模拟</button>
+    <button class="secondary sim-open" id="simOpen" type="button">单场模拟</button>
+    <button class="secondary sim-open" id="tourOpen" type="button">全局模拟</button>
   </section>
 
   <div class="extra-modal" id="simModal" hidden>
@@ -259,6 +280,22 @@
     </div>
   </div>
 
+  <div class="extra-modal" id="tourModal" hidden>
+    <div class="extra-dialog tour-dialog" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+      <div class="modal-head">
+        <b id="tourTitle">全局模拟</b>
+        <button class="modal-close" id="tourClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="sim-panel">
+        <div class="note">按当前预测方式、额外信息和已录入赛果，模拟剩余小组赛与完整 32 强淘汰网络。</div>
+        <div class="modal-actions sim-actions">
+          <button class="primary" id="tourRun" type="button">重新模拟整届</button>
+        </div>
+        <div id="tourOutput" class="tour-output"></div>
+      </div>
+    </div>
+  </div>
+
   <details>
     <summary>模型说明</summary>
     <div class="explain">
@@ -270,7 +307,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-19-simulation";
+const APP_VERSION = "2026-06-19-global-simulation";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -395,6 +432,45 @@ const PARAMS = {
 };
 PARAMS.dcNeutral={...PARAMS.dc,name:"全量拟合 DC · 中性点球",penaltyMode:"neutral"};
 PARAMS.dcHistoryPen={...PARAMS.dc,name:"全量拟合 DC · 历史点球实验",penaltyMode:"history"};
+
+const WORLD_CUP_GROUPS = {
+  A:["Mexico","South Africa","Korea Republic","Czechia"],
+  B:["Canada","Bosnia And Herzegovina","Qatar","Switzerland"],
+  C:["Brazil","Morocco","Haiti","Scotland"],
+  D:["USA","Paraguay","Australia","Türkiye"],
+  E:["Germany","Curaçao","Côte D'Ivoire","Ecuador"],
+  F:["Netherlands","Japan","Sweden","Tunisia"],
+  G:["Belgium","Egypt","IR Iran","New Zealand"],
+  H:["Spain","Cabo Verde","Saudi Arabia","Uruguay"],
+  I:["France","Senegal","Iraq","Norway"],
+  J:["Argentina","Algeria","Austria","Jordan"],
+  K:["Portugal","Congo DR","Uzbekistan","Colombia"],
+  L:["England","Croatia","Ghana","Panama"]
+};
+const R32_TEMPLATE = [
+  {m:73,label:"2A vs 2B",a:{g:"A",pos:2},b:{g:"B",pos:2}},
+  {m:74,label:"1E vs 3A/B/C/D/F",a:{g:"E",pos:1},third:["A","B","C","D","F"]},
+  {m:75,label:"1F vs 2C",a:{g:"F",pos:1},b:{g:"C",pos:2}},
+  {m:76,label:"1C vs 2F",a:{g:"C",pos:1},b:{g:"F",pos:2}},
+  {m:77,label:"1I vs 3C/D/F/G/H",a:{g:"I",pos:1},third:["C","D","F","G","H"]},
+  {m:78,label:"2E vs 2I",a:{g:"E",pos:2},b:{g:"I",pos:2}},
+  {m:79,label:"1A vs 3C/E/F/H/I",a:{g:"A",pos:1},third:["C","E","F","H","I"]},
+  {m:80,label:"1L vs 3E/H/I/J/K",a:{g:"L",pos:1},third:["E","H","I","J","K"]},
+  {m:81,label:"1D vs 3B/E/F/I/J",a:{g:"D",pos:1},third:["B","E","F","I","J"]},
+  {m:82,label:"1G vs 3A/E/H/I/J",a:{g:"G",pos:1},third:["A","E","H","I","J"]},
+  {m:83,label:"2K vs 2L",a:{g:"K",pos:2},b:{g:"L",pos:2}},
+  {m:84,label:"1H vs 2J",a:{g:"H",pos:1},b:{g:"J",pos:2}},
+  {m:85,label:"1B vs 3E/F/G/I/J",a:{g:"B",pos:1},third:["E","F","G","I","J"]},
+  {m:86,label:"1J vs 2H",a:{g:"J",pos:1},b:{g:"H",pos:2}},
+  {m:87,label:"1K vs 3D/E/I/J/L",a:{g:"K",pos:1},third:["D","E","I","J","L"]},
+  {m:88,label:"2D vs 2G",a:{g:"D",pos:2},b:{g:"G",pos:2}}
+];
+const NEXT_ROUNDS = [
+  {name:"16强",pairs:[[73,75],[74,77],[76,78],[79,80],[83,84],[81,82],[86,88],[85,87]],start:89},
+  {name:"八强",pairs:[[89,90],[93,94],[91,92],[95,96]],start:97},
+  {name:"半决赛",pairs:[[97,98],[99,100]],start:101},
+  {name:"决赛",pairs:[[101,102]],start:104}
+];
 
 const MODEL_SNAPSHOT = {
   "generatedAt": "2026-06-17T17:23:06.126Z",
@@ -1715,6 +1791,158 @@ function runSimulation(){
     <div class="note">已使用：${applied}</div>
     <div class="sim-events">${simulationEvents(a,b,score,winner,method)}</div>`;
 }
+function tournamentContext(extraOverride=null){
+  const modelSelect=document.getElementById("modelChoice");
+  const modelKey=(modelSelect&&PARAMS[modelSelect.value])?modelSelect.value:"dc";
+  if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
+  const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
+  const extra=extraOverride||getExtraConfig();
+  let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  state=applyWorldCupFormBoost(state,p,extra);
+  state=applyPenaltyMode(state,modelKey);
+  return {p,extra,state,modelKey};
+}
+function buildTournamentOptions(a,b,p,extra){
+  const e={...extra};
+  if(e.useLineup){
+    const selA=document.getElementById("teamA").value, selB=document.getElementById("teamB").value;
+    const lossFor=(team,kind)=>{
+      if(team.id===selA) return kind==="attack"?extra.aAttackLoss:extra.aDefenseLoss;
+      if(team.id===selB) return kind==="attack"?extra.bAttackLoss:extra.bDefenseLoss;
+      return 0;
+    };
+    e.aAttackLoss=lossFor(a,"attack"); e.aDefenseLoss=lossFor(a,"defense");
+    e.bAttackLoss=lossFor(b,"attack"); e.bDefenseLoss=lossFor(b,"defense");
+    e.useLineup=!!(e.aAttackLoss||e.aDefenseLoss||e.bAttackLoss||e.bDefenseLoss);
+  }
+  return buildPredictionOptions(a,b,p,e);
+}
+function actualResultFor(a,b){
+  const ra=resolveName(a), rb=resolveName(b);
+  const m=RESULTS.find(x=>(resolveName(x.a)===ra&&resolveName(x.b)===rb)||(resolveName(x.a)===rb&&resolveName(x.b)===ra));
+  if(!m) return null;
+  return resolveName(m.a)===ra?{i:m.gf,j:m.ga,actual:true}:{i:m.ga,j:m.gf,actual:true};
+}
+function drawGroupScore(a,b,ctx){
+  const actual=actualResultFor(a.id,b.id);
+  if(actual) return actual;
+  const r=scoreMatrix(a,b,ctx.p,buildTournamentOptions(a,b,ctx.p,ctx.extra));
+  const s=pickScore(r.cells);
+  return {i:s.i,j:s.j,actual:false};
+}
+function drawKnockout(a,b,ctx,stage){
+  const r=scoreMatrix(a,b,ctx.p,buildTournamentOptions(a,b,ctx.p,ctx.extra));
+  const s=pickScore(r.cells);
+  let winner=s.i>s.j?a:(s.i<s.j?b:null), method="90'";
+  if(!winner){
+    method=Math.random()<0.62?"点球":"加时";
+    winner=Math.random()<r.penA?a:b;
+  }
+  return {stage,a,b,score:s,winner,method,prob:winner.id===a.id?r.advA:1-r.advA};
+}
+function emptyStanding(id,group,state){
+  const t=state[id]||ensureTeam(state,id);
+  return {id,group,c:t.c,elo:t.elo,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,rank:0};
+}
+function addStanding(row,gf,ga){
+  row.gf+=gf; row.ga+=ga; row.gd=row.gf-row.ga;
+  if(gf>ga){row.w++;row.p+=3;} else if(gf===ga){row.d++;row.p+=1;} else row.l++;
+}
+function headToHeadDelta(a,b,matches){
+  const m=matches.find(x=>(x.a===a.id&&x.b===b.id)||(x.a===b.id&&x.b===a.id));
+  if(!m) return 0;
+  const ag=m.a===a.id?m.gf:m.ga, bg=m.a===a.id?m.ga:m.gf;
+  if(ag!==bg) return bg-ag;
+  return 0;
+}
+function sortStandings(rows,matches){
+  rows.sort((a,b)=>(b.p-a.p)||headToHeadDelta(a,b,matches)||(b.gd-a.gd)||(b.gf-a.gf)||(b.elo-a.elo));
+  rows.forEach((r,i)=>r.rank=i+1);
+  return rows;
+}
+function simulateGroups(ctx){
+  const groups={}, thirds=[];
+  Object.entries(WORLD_CUP_GROUPS).forEach(([g,ids])=>{
+    const rows=Object.fromEntries(ids.map(id=>[id,emptyStanding(id,g,ctx.state)]));
+    const matches=[];
+    for(let i=0;i<ids.length;i++){
+      for(let j=i+1;j<ids.length;j++){
+        const A=ctx.state[ids[i]]||ensureTeam(ctx.state,ids[i]), B=ctx.state[ids[j]]||ensureTeam(ctx.state,ids[j]);
+        const s=drawGroupScore(A,B,ctx);
+        addStanding(rows[ids[i]],s.i,s.j); addStanding(rows[ids[j]],s.j,s.i);
+        matches.push({a:ids[i],b:ids[j],gf:s.i,ga:s.j,actual:s.actual});
+      }
+    }
+    const table=sortStandings(Object.values(rows),matches);
+    groups[g]={table,matches};
+    thirds.push(table[2]);
+  });
+  thirds.sort((a,b)=>(b.p-a.p)||(b.gd-a.gd)||(b.gf-a.gf)||(b.elo-a.elo));
+  return {groups,thirds:thirds.slice(0,8)};
+}
+function teamFromSlot(slot,groups){
+  return groups[slot.g].table[slot.pos-1];
+}
+function assignThird(slot,available){
+  let i=available.findIndex(t=>slot.third.includes(t.group));
+  if(i<0) i=0;
+  return available.splice(i,1)[0];
+}
+function standingToTeam(row,ctx){
+  const t=ctx.state[row.id]||ensureTeam(ctx.state,row.id);
+  return {...t,group:row.group,rank:row.rank};
+}
+function simulateTournament(){
+  const ctx=tournamentContext();
+  const groupResult=simulateGroups(ctx), thirdPool=[...groupResult.thirds];
+  const matchesById={}, rounds=[[]];
+  R32_TEMPLATE.forEach(slot=>{
+    const a=standingToTeam(teamFromSlot(slot.a,groupResult.groups),ctx);
+    const bRow=slot.b?teamFromSlot(slot.b,groupResult.groups):assignThird(slot,thirdPool);
+    const b=standingToTeam(bRow,ctx);
+    const match=drawKnockout(a,b,ctx,`32强 M${slot.m}`);
+    match.id=slot.m; match.label=slot.label;
+    matchesById[slot.m]=match; rounds[0].push(match);
+  });
+  NEXT_ROUNDS.forEach(round=>{
+    const list=[];
+    round.pairs.forEach((pair,i)=>{
+      const a=matchesById[pair[0]].winner, b=matchesById[pair[1]].winner;
+      const id=round.start+i;
+      const match=drawKnockout(a,b,ctx,`${round.name} M${id}`);
+      match.id=id; match.label=`M${pair[0]}胜者 vs M${pair[1]}胜者`;
+      matchesById[id]=match; list.push(match);
+    });
+    rounds.push(list);
+  });
+  return {ctx,groups:groupResult.groups,thirds:groupResult.thirds,rounds,champion:rounds.at(-1)[0].winner};
+}
+function matchCard(m){
+  const aw=m.winner.id===m.a.id, bw=m.winner.id===m.b.id;
+  const suffix=m.score.i===m.score.j?` · ${m.method}`:"";
+  return `<div class="match-card">
+    <div class="match-top">${escapeHtml(m.stage)} · ${escapeHtml(m.label||"")}</div>
+    <div class="line ${aw?"win":"muted"}"><span>${escapeHtml(m.a.c)}</span><span>${m.score.i}</span></div>
+    <div class="line ${bw?"win":"muted"}"><span>${escapeHtml(m.b.c)}</span><span>${m.score.j}</span></div>
+    <div class="muted">${escapeHtml(m.winner.c)}晋级${suffix}</div>
+  </div>`;
+}
+function groupCard(g,group){
+  const items=group.table.map(t=>`<li>${escapeHtml(t.c)} ${t.p}分 ${t.gf}-${t.ga}</li>`).join("");
+  return `<div class="group-card"><b>${g}组</b><ol>${items}</ol></div>`;
+}
+function renderTournament(){
+  const out=document.getElementById("tourOutput");
+  if(!out) return;
+  const sim=simulateTournament();
+  const stageNames=["32强","16强","八强","半决赛","决赛"];
+  const bracket=sim.rounds.map((round,i)=>`<div class="bracket-col"><h3>${stageNames[i]}</h3>${round.map(matchCard).join("")}</div>`).join("")+
+    `<div class="bracket-col"><h3>冠军</h3><div class="champ-card"><div class="cup">模拟冠军</div><b>${escapeHtml(sim.champion.c)}</b><div class="note">Elo ${Math.round(sim.champion.elo)}</div></div></div>`;
+  const groups=Object.entries(sim.groups).map(([g,x])=>groupCard(g,x)).join("");
+  out.innerHTML=`<div class="champ-card"><div class="cup">本次全局模拟冠军</div><b>${escapeHtml(sim.champion.c)}</b><div class="note">已使用当前预测方式、额外信息与 ${RESULTS.length} 场已录入赛果。</div></div>
+    <div class="group-grid">${groups}</div>
+    <div class="bracket-scroll"><div class="bracket-grid">${bracket}</div></div>`;
+}
 async function renderPredictWithHistory(){
   const out=document.getElementById("result");
   const aId=document.getElementById("teamA").value, bId=document.getElementById("teamB").value;
@@ -1924,6 +2152,7 @@ function init(){
   const extraToggle=document.getElementById("extraToggle"), extraPanel=document.getElementById("extraPanel"), extraModal=document.getElementById("extraModal");
   const extraClose=document.getElementById("extraClose"), extraDone=document.getElementById("extraDone");
   const simOpen=document.getElementById("simOpen"), simModal=document.getElementById("simModal"), simClose=document.getElementById("simClose"), simRun=document.getElementById("simRun");
+  const tourOpen=document.getElementById("tourOpen"), tourModal=document.getElementById("tourModal"), tourClose=document.getElementById("tourClose"), tourRun=document.getElementById("tourRun");
   const extraChecks=["useVenue","useLineup","useRegion","useWorldCupForm"];
   const updateExtraState=()=>{
     const enabled=extraChecks.some(id=>document.getElementById(id)?.checked);
@@ -1951,6 +2180,16 @@ function init(){
     simModal.hidden=true;
     document.body.classList.remove("modal-open");
   };
+  const openTour=()=>{
+    renderPredict();
+    tourModal.hidden=false;
+    document.body.classList.add("modal-open");
+    renderTournament();
+  };
+  const closeTour=()=>{
+    tourModal.hidden=true;
+    document.body.classList.remove("modal-open");
+  };
   extraToggle.onclick=openExtra;
   extraClose.onclick=closeExtra;
   extraDone.onclick=closeExtra;
@@ -1959,10 +2198,15 @@ function init(){
   simClose.onclick=closeSim;
   simRun.onclick=runSimulation;
   simModal.onclick=e=>{if(e.target===simModal)closeSim();};
+  tourOpen.onclick=openTour;
+  tourClose.onclick=closeTour;
+  tourRun.onclick=renderTournament;
+  tourModal.onclick=e=>{if(e.target===tourModal)closeTour();};
   if(document.addEventListener)document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){
       if(!extraModal.hidden)closeExtra();
       if(!simModal.hidden)closeSim();
+      if(!tourModal.hidden)closeTour();
     }
   });
   document.querySelectorAll("#extraPanel input,#extraPanel select").forEach(el=>el.onchange=()=>{updateExtraState();renderPredict();});
