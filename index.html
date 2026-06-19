@@ -76,6 +76,21 @@
   .exhibition b{color:var(--ink)}
   .exhibition .recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .exhibition .pill{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff}
+  .sim-entry{margin-top:18px}
+  .sim-open{background:#fffaf5;color:var(--red)}
+  .sim-dialog{width:min(680px,100%)}
+  .sim-panel{padding:14px 16px 16px;background:#fffaf5}
+  .sim-actions{padding:12px 0 0}
+  .sim-output{margin-top:14px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:14px}
+  .sim-kicker{font-size:12px;color:var(--muted)}
+  .sim-score{font-size:28px;line-height:1.2;font-weight:820;margin-top:4px}
+  .sim-winner{font-size:14px;color:var(--red);font-weight:720;margin-top:7px}
+  .sim-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .sim-meta div{border:1px solid var(--line);border-radius:8px;background:var(--paper2);padding:8px 9px;font-size:12px;color:var(--muted)}
+  .sim-meta b{display:block;color:var(--ink);font-size:15px}
+  .sim-events{margin-top:12px;display:grid;gap:7px}
+  .sim-event{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:13px;color:var(--ink);align-items:start}
+  .sim-event span:first-child{color:var(--muted);text-align:right}
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
@@ -112,6 +127,8 @@
     .panel{padding:20px 16px 18px}
     .chip{font-size:13px;padding:9px 10px}
     .wdl{font-size:12px}
+    .sim-meta{grid-template-columns:1fr}
+    .sim-score{font-size:25px}
   }
 </style>
 </head>
@@ -208,6 +225,40 @@
     </div>
   </section>
 
+  <section class="sim-entry">
+    <button class="secondary sim-open" id="simOpen" type="button">战况模拟</button>
+  </section>
+
+  <div class="extra-modal" id="simModal" hidden>
+    <div class="extra-dialog sim-dialog" role="dialog" aria-modal="true" aria-labelledby="simTitle">
+      <div class="modal-head">
+        <b id="simTitle">战况模拟</b>
+        <button class="modal-close" id="simClose" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="sim-panel">
+        <div class="note">默认沿用当前球队、预测方式和额外信息；下方阵容修正只影响本次模拟。</div>
+        <div class="mini sim-lineup">
+          <label>第一队临时进攻缺损
+            <select id="simAAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.30">30%</option></select>
+          </label>
+          <label>第一队临时防守缺损
+            <select id="simADefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.30">30%</option></select>
+          </label>
+          <label>第二队临时进攻缺损
+            <select id="simBAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.30">30%</option></select>
+          </label>
+          <label>第二队临时防守缺损
+            <select id="simBDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.30">30%</option></select>
+          </label>
+        </div>
+        <div class="modal-actions sim-actions">
+          <button class="primary" id="simRun" type="button">重新模拟</button>
+        </div>
+        <div id="simOutput" class="sim-output"></div>
+      </div>
+    </div>
+  </div>
+
   <details>
     <summary>模型说明</summary>
     <div class="explain">
@@ -219,7 +270,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-19-compact-controls";
+const APP_VERSION = "2026-06-19-simulation";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -303,7 +354,11 @@ const RESULTS = [
 {date:"2026-06-18", a:"Portugal", b:"Congo DR", gf:1, ga:1},
 {date:"2026-06-18", a:"England", b:"Croatia", gf:4, ga:2},
 {date:"2026-06-18", a:"Ghana", b:"Panama", gf:1, ga:0},
-{date:"2026-06-18", a:"Uzbekistan", b:"Colombia", gf:1, ga:3}
+{date:"2026-06-18", a:"Uzbekistan", b:"Colombia", gf:1, ga:3},
+{date:"2026-06-18", a:"Czechia", b:"South Africa", gf:1, ga:1},
+{date:"2026-06-18", a:"Switzerland", b:"Bosnia And Herzegovina", gf:4, ga:1},
+{date:"2026-06-18", a:"Canada", b:"Qatar", gf:6, ga:0},
+{date:"2026-06-19", a:"Mexico", b:"Korea Republic", gf:1, ga:0}
 ];
 
 const EXHIBITION_TEAMS = {
@@ -1554,6 +1609,112 @@ function renderPredict(ctx=null){
     <div class="score-title">90分钟最可能比分</div><div class="chips">${top}</div>
     ${exhibitionHtml(a,b)}`;
 }
+function currentPredictionForSimulation(extraOverride=null){
+  const modelSelect=document.getElementById("modelChoice");
+  const modelKey=(modelSelect&&PARAMS[modelSelect.value])?modelSelect.value:"dc";
+  if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
+  const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
+  const extra=extraOverride||getExtraConfig();
+  let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  state=applyWorldCupFormBoost(state,p,extra);
+  state=applyPenaltyMode(state,modelKey);
+  const a=cloneTeam(state[document.getElementById("teamA").value]), b=cloneTeam(state[document.getElementById("teamB").value]);
+  if(!a||!b||a.id===b.id) return null;
+  const predictionOpts=buildPredictionOptions(a,b,p,extra);
+  const r=scoreMatrix(a,b,p,predictionOpts);
+  return {a,b,p,r,extra,predictionOpts,modelKey};
+}
+function simulationTempLosses(){
+  return {
+    aAttackLoss:pctVal("simAAttackLoss"),
+    aDefenseLoss:pctVal("simADefenseLoss"),
+    bAttackLoss:pctVal("simBAttackLoss"),
+    bDefenseLoss:pctVal("simBDefenseLoss")
+  };
+}
+function simulationExtraConfig(){
+  const extra=getExtraConfig(), temp=simulationTempLosses();
+  const hasTemp=Object.values(temp).some(v=>v>0);
+  if(!hasTemp) return extra;
+  const baseLineup=extra.enabled&&extra.useLineup;
+  extra.enabled=true;
+  extra.useLineup=true;
+  extra.aAttackLoss=clamp((baseLineup?extra.aAttackLoss:0)+temp.aAttackLoss,0,0.30);
+  extra.aDefenseLoss=clamp((baseLineup?extra.aDefenseLoss:0)+temp.aDefenseLoss,0,0.30);
+  extra.bAttackLoss=clamp((baseLineup?extra.bAttackLoss:0)+temp.bAttackLoss,0,0.30);
+  extra.bDefenseLoss=clamp((baseLineup?extra.bDefenseLoss:0)+temp.bDefenseLoss,0,0.30);
+  return extra;
+}
+function pickScore(cells){
+  const x=Math.random(); let acc=0;
+  for(const c of cells){acc+=c.pr;if(x<=acc)return c;}
+  return cells[cells.length-1];
+}
+function simulationTempo(la,lb){
+  const total=la+lb;
+  if(total>=3.25) return "开放对攻";
+  if(total<=2.05) return "谨慎低比分";
+  return Math.abs(la-lb)>0.55?"一方压制":"均衡拉锯";
+}
+function simulationEvents(a,b,score,winner,method){
+  const goals=[];
+  for(let i=0;i<score.i;i++) goals.push({side:"a",min:8+Math.floor(Math.random()*82)});
+  for(let i=0;i<score.j;i++) goals.push({side:"b",min:8+Math.floor(Math.random()*82)});
+  goals.sort((x,y)=>x.min-y.min);
+  let ga=0,gb=0;
+  const rows=[];
+  if(!goals.length){
+    rows.push(`<div class="sim-event"><span>1-90'</span><div>双方都没有把握住机会，比赛被带入低比分拉锯。</div></div>`);
+  }
+  goals.forEach(g=>{
+    if(g.side==="a") ga++; else gb++;
+    const team=g.side==="a"?a:b;
+    rows.push(`<div class="sim-event"><span>${g.min}'</span><div>${team.c}进球，比分变为 ${ga}-${gb}。</div></div>`);
+  });
+  if(score.i===score.j){
+    rows.push(`<div class="sim-event"><span>120+'</span><div>${winner.c}通过${method}胜出。</div></div>`);
+  }else{
+    rows.push(`<div class="sim-event"><span>90+'</span><div>${winner.c}守住优势，90分钟结束。</div></div>`);
+  }
+  return rows.join("");
+}
+function simulationLossSummary(a,b){
+  const t=simulationTempLosses(), bits=[];
+  if(t.aAttackLoss) bits.push(`${a.c}进攻-${lossText(t.aAttackLoss)}`);
+  if(t.aDefenseLoss) bits.push(`${a.c}防守-${lossText(t.aDefenseLoss)}`);
+  if(t.bAttackLoss) bits.push(`${b.c}进攻-${lossText(t.bAttackLoss)}`);
+  if(t.bDefenseLoss) bits.push(`${b.c}防守-${lossText(t.bDefenseLoss)}`);
+  return bits.length?bits.join(" · "):"未添加临时阵容修正";
+}
+function runSimulation(){
+  const out=document.getElementById("simOutput");
+  if(!out) return;
+  const pred=currentPredictionForSimulation(simulationExtraConfig());
+  if(!pred){out.innerHTML='<p class="note">请选择两支不同球队后再模拟。</p>';return;}
+  const {a,b,r,predictionOpts}=pred;
+  const score=pickScore(r.cells);
+  let winner=score.i>score.j?a:(score.i<score.j?b:null);
+  let method="90分钟";
+  if(!winner){
+    method=Math.random()<0.62?"点球大战":"加时赛";
+    winner=Math.random()<r.penA?a:b;
+  }
+  const resultText=score.i===score.j?`${winner.c} ${method}胜出`:`${winner.c} 90分钟胜出`;
+  const applied=(predictionOpts.applied&&predictionOpts.applied.length)?predictionOpts.applied.map(escapeHtml).join(" · "):"无额外修正";
+  out.innerHTML=`
+    <div class="sim-kicker">单次模拟结果</div>
+    <div class="sim-score">${a.c} ${score.i}-${score.j} ${b.c}</div>
+    <div class="sim-winner">${resultText}</div>
+    <div class="sim-meta">
+      <div><b>${pc(r.w,0)} / ${pc(r.d,0)} / ${pc(r.l,0)}</b>90分钟胜 / 平 / 负</div>
+      <div><b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b>预期进球</div>
+      <div><b>${pc(score.pr,1)}</b>本次抽中比分概率</div>
+      <div><b>${simulationTempo(r.la,r.lb)}</b>比赛走势</div>
+    </div>
+    <div class="note">阵容：${escapeHtml(simulationLossSummary(a,b))}</div>
+    <div class="note">已使用：${applied}</div>
+    <div class="sim-events">${simulationEvents(a,b,score,winner,method)}</div>`;
+}
 async function renderPredictWithHistory(){
   const out=document.getElementById("result");
   const aId=document.getElementById("teamA").value, bId=document.getElementById("teamB").value;
@@ -1762,6 +1923,7 @@ function init(){
   document.getElementById("go").onclick=()=>renderPredict();
   const extraToggle=document.getElementById("extraToggle"), extraPanel=document.getElementById("extraPanel"), extraModal=document.getElementById("extraModal");
   const extraClose=document.getElementById("extraClose"), extraDone=document.getElementById("extraDone");
+  const simOpen=document.getElementById("simOpen"), simModal=document.getElementById("simModal"), simClose=document.getElementById("simClose"), simRun=document.getElementById("simRun");
   const extraChecks=["useVenue","useLineup","useRegion","useWorldCupForm"];
   const updateExtraState=()=>{
     const enabled=extraChecks.some(id=>document.getElementById(id)?.checked);
@@ -1779,11 +1941,30 @@ function init(){
     document.body.classList.remove("modal-open");
     extraToggle.setAttribute("aria-expanded","false");
   };
+  const openSim=()=>{
+    renderPredict();
+    simModal.hidden=false;
+    document.body.classList.add("modal-open");
+    runSimulation();
+  };
+  const closeSim=()=>{
+    simModal.hidden=true;
+    document.body.classList.remove("modal-open");
+  };
   extraToggle.onclick=openExtra;
   extraClose.onclick=closeExtra;
   extraDone.onclick=closeExtra;
   extraModal.onclick=e=>{if(e.target===extraModal)closeExtra();};
-  if(document.addEventListener)document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!extraModal.hidden)closeExtra();});
+  simOpen.onclick=openSim;
+  simClose.onclick=closeSim;
+  simRun.onclick=runSimulation;
+  simModal.onclick=e=>{if(e.target===simModal)closeSim();};
+  if(document.addEventListener)document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){
+      if(!extraModal.hidden)closeExtra();
+      if(!simModal.hidden)closeSim();
+    }
+  });
   document.querySelectorAll("#extraPanel input,#extraPanel select").forEach(el=>el.onchange=()=>{updateExtraState();renderPredict();});
   updateExtraState();
   A.onchange=()=>renderPredict();
