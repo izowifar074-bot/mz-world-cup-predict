@@ -23,18 +23,28 @@
     box-shadow:0 3px 14px rgba(19,35,58,.06)}
   .board{display:grid;gap:18px;align-items:start}
   .controls{display:grid;gap:12px;align-items:center}
+  .mode-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
   select,input,button{font:inherit}
   select,input{width:100%;padding:14px 16px;border:1px solid #d8cfbf;border-radius:8px;background:#fff;color:var(--ink);
     min-height:58px;font-size:17px}
   input[type="checkbox"]{width:auto;min-height:auto;padding:0}
   .model-choice{color:var(--red);font-weight:680;text-align:center;text-align-last:center;background:var(--paper2)}
+  .mode-row .model-choice,.mode-row .extra-toggle{min-height:54px;padding:10px 11px;font-size:14px;line-height:1.25}
   .btnrow{display:block;margin-top:14px}
   button.primary,button.secondary{border:0;border-radius:8px;padding:13px 15px;cursor:pointer;font-weight:720;width:100%;font-size:17px}
   button.primary{background:var(--red);color:#fff}
   button.secondary{background:var(--paper2);color:var(--ink);border:1px solid var(--line)}
-  button.extra-toggle{margin-top:10px;color:var(--red);background:#fffaf5}
+  button.extra-toggle{color:var(--red);background:#fffaf5}
   button.extra-toggle.active{background:var(--ink);border-color:var(--ink);color:#fff}
-  .extra-panel{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fffaf5;padding:12px}
+  body.modal-open{overflow:hidden}
+  .extra-modal{position:fixed;inset:0;z-index:20;background:rgba(19,35,58,.24);display:flex;align-items:center;justify-content:center;padding:18px}
+  .extra-modal[hidden]{display:none}
+  .extra-dialog{width:min(560px,100%);max-height:min(84vh,720px);overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 18px 48px rgba(19,35,58,.22)}
+  .modal-head{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;background:var(--card);border-bottom:1px solid var(--line);z-index:1}
+  .modal-head b{font-size:16px;color:var(--ink)}
+  .modal-close{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--muted);cursor:pointer;font-size:22px;line-height:1}
+  .modal-actions{padding:0 16px 16px}
+  .extra-panel{border:0;background:#fffaf5;padding:14px 16px 16px}
   .extra-panel[hidden]{display:none}
   .extra-row{border-top:1px solid #eadfce;padding-top:11px;margin-top:11px}
   .extra-row:first-child{border-top:0;padding-top:0;margin-top:0}
@@ -116,68 +126,81 @@
     <div class="panel controls-panel">
       <div class="controls">
         <select id="teamA" aria-label="第一支球队"></select>
-        <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
-          <option value="dc">预测方式：全量拟合 Dixon-Coles（默认）</option>
-          <option value="dcNeutral">预测方式：全量拟合 DC · 中性点球</option>
-          <option value="dcHistoryPen">预测方式：全量拟合 DC · 历史点球实验</option>
-          <option value="fitted">预测方式：全量拟合 Poisson</option>
-          <option value="current">预测方式：原始经验参数</option>
-          <option value="elo">预测方式：Elo-only</option>
-          <option value="ad">预测方式：攻防-only</option>
-        </select>
+        <div class="mode-row">
+          <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
+            <option value="dc">默认即可</option>
+            <option value="dcNeutral">中性点球</option>
+            <option value="dcHistoryPen">历史点球实验</option>
+            <option value="fitted">全量 Poisson</option>
+            <option value="current">原始经验</option>
+            <option value="elo">Elo-only</option>
+            <option value="ad">攻防-only</option>
+          </select>
+          <button class="secondary extra-toggle" id="extraToggle" type="button" aria-expanded="false">额外信息：关</button>
+        </div>
         <select id="teamB" aria-label="第二支球队"></select>
       </div>
       <div class="btnrow">
         <button class="primary" id="go">预测对阵</button>
-        <button class="secondary extra-toggle" id="extraToggle" type="button" aria-expanded="false">考虑额外信息（实验性）：关</button>
       </div>
-      <div class="extra-panel" id="extraPanel" hidden>
-        <div class="extra-row">
-          <label class="check"><input type="checkbox" id="useVenue"> 主场 / 东道主</label>
-          <div class="mini">
-            <label>场地归属
-              <select id="venueMode">
-                <option value="auto">自动识别 2026 东道主</option>
-                <option value="neutral">中立场</option>
-                <option value="hostA">第一队主场/东道主</option>
-                <option value="hostB">第二队主场/东道主</option>
-              </select>
-            </label>
+      <div class="extra-modal" id="extraModal" hidden>
+        <div class="extra-dialog" role="dialog" aria-modal="true" aria-labelledby="extraTitle">
+          <div class="modal-head">
+            <b id="extraTitle">额外信息（实验性）</b>
+            <button class="modal-close" id="extraClose" type="button" aria-label="关闭">×</button>
+          </div>
+          <div class="extra-panel" id="extraPanel">
+            <div class="extra-row">
+              <label class="check"><input type="checkbox" id="useVenue"> 主场 / 东道主</label>
+              <div class="mini">
+                <label>场地归属
+                  <select id="venueMode">
+                    <option value="auto">自动识别 2026 东道主</option>
+                    <option value="neutral">中立场</option>
+                    <option value="hostA">第一队主场/东道主</option>
+                    <option value="hostB">第二队主场/东道主</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="extra-row">
+              <label class="check"><input type="checkbox" id="useLineup"> 阵容伤停手动修正</label>
+              <div class="mini">
+                <label>第一队进攻缺损
+                  <select id="aAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+                </label>
+                <label>第一队防守缺损
+                  <select id="aDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+                </label>
+                <label>第二队进攻缺损
+                  <select id="bAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+                </label>
+                <label>第二队防守缺损
+                  <select id="bDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
+                </label>
+              </div>
+            </div>
+            <div class="extra-row">
+              <label class="check"><input type="checkbox" id="useRegion"> 洲际强度校准</label>
+            </div>
+            <div class="extra-row">
+              <label class="check"><input type="checkbox" id="useWorldCupForm"> 本届世界杯表现加权</label>
+              <div class="mini">
+                <label>加权强度
+                  <select id="worldCupWeight">
+                    <option value="medium">中等</option>
+                    <option value="light">轻微</option>
+                    <option value="strong">强</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="note">实验项会改变预期进球，因此会改变 90 分钟最可能比分。点球模式只影响晋级概率。</div>
+          </div>
+          <div class="modal-actions">
+            <button class="primary" id="extraDone" type="button">完成</button>
           </div>
         </div>
-        <div class="extra-row">
-          <label class="check"><input type="checkbox" id="useLineup"> 阵容伤停手动修正</label>
-          <div class="mini">
-            <label>第一队进攻缺损
-              <select id="aAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
-            </label>
-            <label>第一队防守缺损
-              <select id="aDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
-            </label>
-            <label>第二队进攻缺损
-              <select id="bAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
-            </label>
-            <label>第二队防守缺损
-              <select id="bDefenseLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
-            </label>
-          </div>
-        </div>
-        <div class="extra-row">
-          <label class="check"><input type="checkbox" id="useRegion"> 洲际强度校准</label>
-        </div>
-        <div class="extra-row">
-          <label class="check"><input type="checkbox" id="useWorldCupForm"> 本届世界杯表现加权</label>
-          <div class="mini">
-            <label>加权强度
-              <select id="worldCupWeight">
-                <option value="medium">中等</option>
-                <option value="light">轻微</option>
-                <option value="strong">强</option>
-              </select>
-            </label>
-          </div>
-        </div>
-        <div class="note">实验项会改变预期进球，因此会改变 90 分钟最可能比分。点球模式只影响晋级概率。</div>
       </div>
     </div>
     <div class="panel result-panel">
@@ -196,7 +219,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-18-china-exhibition";
+const APP_VERSION = "2026-06-19-compact-controls";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -1737,17 +1760,32 @@ function init(){
   A.value="Spain";B.value="France";document.getElementById("modelChoice").value="dc";
   renderPredict();
   document.getElementById("go").onclick=()=>renderPredict();
-  const extraToggle=document.getElementById("extraToggle"), extraPanel=document.getElementById("extraPanel");
-  extraToggle.onclick=()=>{
-    const enabled=extraToggle.dataset.enabled!=="1";
+  const extraToggle=document.getElementById("extraToggle"), extraPanel=document.getElementById("extraPanel"), extraModal=document.getElementById("extraModal");
+  const extraClose=document.getElementById("extraClose"), extraDone=document.getElementById("extraDone");
+  const extraChecks=["useVenue","useLineup","useRegion","useWorldCupForm"];
+  const updateExtraState=()=>{
+    const enabled=extraChecks.some(id=>document.getElementById(id)?.checked);
     extraToggle.dataset.enabled=enabled?"1":"0";
     extraToggle.classList.toggle("active",enabled);
-    extraToggle.setAttribute("aria-expanded",enabled?"true":"false");
-    extraToggle.textContent=`考虑额外信息（实验性）：${enabled?"开":"关"}`;
-    extraPanel.hidden=!enabled;
-    renderPredict();
+    extraToggle.textContent=`额外信息：${enabled?"开":"关"}`;
   };
-  document.querySelectorAll("#extraPanel input,#extraPanel select").forEach(el=>el.onchange=()=>renderPredict());
+  const openExtra=()=>{
+    extraModal.hidden=false;
+    document.body.classList.add("modal-open");
+    extraToggle.setAttribute("aria-expanded","true");
+  };
+  const closeExtra=()=>{
+    extraModal.hidden=true;
+    document.body.classList.remove("modal-open");
+    extraToggle.setAttribute("aria-expanded","false");
+  };
+  extraToggle.onclick=openExtra;
+  extraClose.onclick=closeExtra;
+  extraDone.onclick=closeExtra;
+  extraModal.onclick=e=>{if(e.target===extraModal)closeExtra();};
+  if(document.addEventListener)document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!extraModal.hidden)closeExtra();});
+  document.querySelectorAll("#extraPanel input,#extraPanel select").forEach(el=>el.onchange=()=>{updateExtraState();renderPredict();});
+  updateExtraState();
   A.onchange=()=>renderPredict();
   B.onchange=()=>renderPredict();
   document.getElementById("modelChoice").onchange=()=>renderPredict();
