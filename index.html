@@ -62,6 +62,10 @@
   .xg b{color:var(--ink)}
   .pen-note{text-align:center;margin:-10px 0 18px;color:#9a9183;font-size:12px}
   .extra-note{text-align:center;margin:-10px 0 18px;color:var(--red);font-size:12px}
+  .exhibition{margin:16px 0 0;border:1px solid var(--line);border-radius:8px;background:#fffaf5;padding:12px;font-size:12px;color:var(--muted)}
+  .exhibition b{color:var(--ink)}
+  .exhibition .recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .exhibition .pill{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff}
   .score-title{font-size:13px;color:#a7a094;margin:0 0 10px}
   .chips{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
   .chip{font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper2);
@@ -192,7 +196,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-18-extra-info-exp";
+const APP_VERSION = "2026-06-18-china-exhibition";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -278,6 +282,31 @@ const RESULTS = [
 {date:"2026-06-18", a:"Ghana", b:"Panama", gf:1, ga:0},
 {date:"2026-06-18", a:"Uzbekistan", b:"Colombia", gf:1, ga:3}
 ];
+
+const EXHIBITION_TEAMS = {
+  "China PR":{
+    c:"中国",
+    region:"East Asia",
+    qualified:false,
+    note:"中国队历史战况",
+    rating:{elo:1549.753,attack:75.496,defense:82.281,penalty:50},
+    source:{data:"martj42 international_results results.csv",latestMatchDate:"2026-06-16",matches:702},
+    allTime:{n:702,w:339,d:154,l:209,gf:1285,ga:768,gfpg:1.83,gapg:1.09},
+    since2018:{n:76,w:28,d:17,l:31,gf:100,ga:94,gfpg:1.32,gapg:1.24},
+    last10:[
+      {date:"2024-11-19",opponent:"日本",gf:1,ga:3,result:"负"},
+      {date:"2025-03-20",opponent:"沙特",gf:0,ga:1,result:"负"},
+      {date:"2025-03-25",opponent:"澳大利亚",gf:0,ga:2,result:"负"},
+      {date:"2025-06-05",opponent:"印度尼西亚",gf:0,ga:1,result:"负"},
+      {date:"2025-06-10",opponent:"巴林",gf:1,ga:0,result:"胜"},
+      {date:"2026-01-26",opponent:"乌兹别克斯坦",gf:2,ga:2,result:"平"},
+      {date:"2026-03-27",opponent:"库拉索",gf:2,ga:0,result:"胜"},
+      {date:"2026-03-31",opponent:"喀麦隆",gf:0,ga:2,result:"负"},
+      {date:"2026-06-05",opponent:"新加坡",gf:2,ga:1,result:"胜"},
+      {date:"2026-06-09",opponent:"泰国",gf:0,ga:0,result:"平"}
+    ]
+  }
+};
 
 const PARAMS = {
   current:{name:"原始经验参数", alpha:Math.log(1.32), betaAD:1/38, betaElo:1/950, k:24, adK:0.35, minLambda:0.15, maxLambda:4.2, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9},
@@ -1180,7 +1209,7 @@ const alias = new Map([
   ["turkey","Türkiye"],["turkiye","Türkiye"],["ivory coast","Côte D'Ivoire"],["cote d ivoire","Côte D'Ivoire"],
   ["south korea","Korea Republic"],["united states","USA"],["iran","IR Iran"],["cape verde","Cabo Verde"],
   ["czech republic","Czechia"],["bosnia herzegovina","Bosnia And Herzegovina"],["bosnia and herzegovina","Bosnia And Herzegovina"],
-  ["curacao","Curaçao"],["saudi arabia","Saudi Arabia"],["new zealand","New Zealand"],["south africa","South Africa"],
+  ["curacao","Curaçao"],["saudi arabia","Saudi Arabia"],["new zealand","New Zealand"],["south africa","South Africa"],["china","China PR"],["china pr","China PR"],
   ["dr congo","Congo DR"],["democratic republic of congo","Congo DR"]
 ]);
 function resolveName(name){
@@ -1193,11 +1222,19 @@ function resolveName(name){
 function createStateFromBase(){
   const state={};
   BASE.forEach(t=>state[t.t]={id:t.t,c:t.c,region:t.region||"Unknown",elo:t.e,attack:t.a,defense:t.d,penalty:t.p});
+  addExhibitionTeams(state);
   return state;
 }
 function createNeutralHistoryState(){
   const state={};
   BASE.forEach(t=>state[t.t]={id:t.t,c:t.c,region:t.region||"Unknown",elo:1500,attack:72,defense:72,penalty:t.p});
+  addExhibitionTeams(state);
+  return state;
+}
+function addExhibitionTeams(state){
+  Object.entries(EXHIBITION_TEAMS).forEach(([id,x])=>{
+    state[id]={id,c:x.c,region:x.region||"Unknown",elo:x.rating.elo,attack:x.rating.attack,defense:x.rating.defense,penalty:x.rating.penalty,exhibition:true};
+  });
   return state;
 }
 function ensureTeam(state,id){
@@ -1323,6 +1360,20 @@ function extraSummaryHtml(applied){
   if(!applied||!applied.length) return "";
   return `<div class="extra-note">实验增强：${applied.map(escapeHtml).join(" · ")}</div>`;
 }
+function exhibitionHtml(a,b){
+  const ids=[a.id,b.id].filter(id=>EXHIBITION_TEAMS[id]);
+  if(!ids.length) return "";
+  return ids.map(id=>{
+    const x=EXHIBITION_TEAMS[id], s=x.since2018, all=x.allTime;
+    const recent=x.last10.slice(-5).map(m=>`<span class="pill">${m.date.slice(5)} ${m.result} ${m.gf}-${m.ga} ${escapeHtml(m.opponent)}</span>`).join("");
+    return `<div class="exhibition">
+      <b>${x.c}队战况</b><br>
+      滚动评级：Elo ${Math.round(x.rating.elo)} / Attack ${x.rating.attack.toFixed(1)} / Defense ${x.rating.defense.toFixed(1)}。<br>
+      历史样本 ${all.n} 场：${all.w}胜 ${all.d}平 ${all.l}负，进 ${all.gf} / 失 ${all.ga}。2018以来 ${s.n} 场：${s.w}胜 ${s.d}平 ${s.l}负，场均 ${s.gfpg.toFixed(2)}-${s.gapg.toFixed(2)}。<br>
+      最近5场：<span class="recent">${recent}</span>
+    </div>`;
+  }).join("");
+}
 function scoreMatrix(a,b,p,opts={}){
   const [la,lb]=lambdas(a,b,p,opts);
   let cells=[],sum=0,w=0,d=0,l=0,over15=0,over25=0,over35=0,p00=0,p11=0;
@@ -1367,6 +1418,7 @@ function stateFromSnapshot(params){
   if(!MODEL_SNAPSHOT||!MODEL_SNAPSHOT.ratings) return null;
   const state={};
   Object.entries(MODEL_SNAPSHOT.ratings).forEach(([id,r])=>state[id]={id,c:r.c,region:r.region||"Unknown",elo:r.elo,attack:r.attack,defense:r.defense,penalty:r.penalty});
+  addExhibitionTeams(state);
   RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
   return state;
 }
@@ -1476,7 +1528,8 @@ function renderPredict(ctx=null){
     <div class="xg">预期进球 <b>${r.la.toFixed(2)} - ${r.lb.toFixed(2)}</b></div>
     ${extraSummaryHtml(predictionOpts.applied)}
     <div class="pen-note">${penaltyModeLabel(p)}</div>
-    <div class="score-title">90分钟最可能比分</div><div class="chips">${top}</div>`;
+    <div class="score-title">90分钟最可能比分</div><div class="chips">${top}</div>
+    ${exhibitionHtml(a,b)}`;
 }
 async function renderPredictWithHistory(){
   const out=document.getElementById("result");
