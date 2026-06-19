@@ -82,6 +82,7 @@
   .tour-dialog{width:min(1180px,100%);max-height:min(88vh,820px)}
   .sim-panel{padding:14px 16px 16px;background:#fffaf5}
   .sim-actions{padding:12px 0 0}
+  .tour-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .sim-output{margin-top:14px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:14px}
   .sim-kicker{font-size:12px;color:var(--muted)}
   .sim-score{font-size:28px;line-height:1.2;font-weight:820;margin-top:4px}
@@ -165,6 +166,7 @@
     .wdl{font-size:12px}
     .sim-entry{grid-template-columns:1fr 1fr}
     .sim-open{font-size:15px;padding:12px 10px}
+    .tour-actions{grid-template-columns:1fr}
     .sim-meta{grid-template-columns:1fr}
     .sim-score{font-size:25px}
   }
@@ -306,8 +308,9 @@
       </div>
       <div class="sim-panel">
         <div class="note">按当前预测方式、额外信息和已录入赛果，模拟剩余小组赛与完整 32 强淘汰网络。</div>
-        <div class="modal-actions sim-actions">
-          <button class="primary" id="tourRun" type="button">重新模拟整届</button>
+        <div class="modal-actions sim-actions tour-actions">
+          <button class="secondary" id="tourRunAll" type="button">模拟整届</button>
+          <button class="primary" id="tourRunKnown" type="button">固定已赛比分</button>
         </div>
         <div id="tourOutput" class="tour-output"></div>
       </div>
@@ -325,7 +328,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-19-network-bracket";
+const APP_VERSION = "2026-06-19-simulation-modes";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -1842,7 +1845,7 @@ function actualResultFor(a,b){
   return resolveName(m.a)===ra?{i:m.gf,j:m.ga,actual:true}:{i:m.ga,j:m.gf,actual:true};
 }
 function drawGroupScore(a,b,ctx){
-  const actual=actualResultFor(a.id,b.id);
+  const actual=ctx.fixKnownResults?actualResultFor(a.id,b.id):null;
   if(actual) return actual;
   const r=scoreMatrix(a,b,ctx.p,buildTournamentOptions(a,b,ctx.p,ctx.extra));
   const s=pickScore(r.cells);
@@ -1910,8 +1913,9 @@ function standingToTeam(row,ctx){
   const t=ctx.state[row.id]||ensureTeam(ctx.state,row.id);
   return {...t,group:row.group,rank:row.rank};
 }
-function simulateTournament(){
+function simulateTournament(fixKnownResults=true){
   const ctx=tournamentContext();
+  ctx.fixKnownResults=fixKnownResults;
   const groupResult=simulateGroups(ctx), thirdPool=[...groupResult.thirds];
   const matchesById={}, rounds=[[]];
   R32_TEMPLATE.forEach(slot=>{
@@ -1952,10 +1956,10 @@ function groupCard(g,group){
 function networkColumn(title,cls,ids,matches,side){
   return `<div class="net-col ${cls} ${side}"><div class="net-title">${title}</div><div class="net-list">${ids.map(id=>networkMatchCard(matches[id])).join("")}</div></div>`;
 }
-function renderTournament(){
+function renderTournament(fixKnownResults=true){
   const out=document.getElementById("tourOutput");
   if(!out) return;
-  const sim=simulateTournament();
+  const sim=simulateTournament(fixKnownResults);
   const m=sim.matchesById, final=m[104];
   const bracket=[
     networkColumn("32强","r32",[73,75,74,77,83,84,81,82],m,"left"),
@@ -1973,8 +1977,9 @@ function renderTournament(){
     networkColumn("32强","r32",[76,78,79,80,86,88,85,87],m,"right")
   ].join("");
   const groups=Object.entries(sim.groups).map(([g,x])=>groupCard(g,x)).join("");
+  const modeText=fixKnownResults?`固定当前 ${RESULTS.length} 场已赛比分，只模拟剩余比赛`:"从小组赛第一场开始模拟整届，不锁定已赛比分";
   out.innerHTML=`<div class="network-scroll"><div class="network">${bracket}</div></div>
-    <div class="note">已使用当前预测方式、额外信息与 ${RESULTS.length} 场已录入赛果。横向滑动可查看完整网络。</div>
+    <div class="note">模式：${modeText}。横向滑动可查看完整网络。</div>
     <details class="group-drawer"><summary>查看本次模拟小组排名</summary><div class="group-grid">${groups}</div></details>`;
 }
 async function renderPredictWithHistory(){
@@ -2186,7 +2191,8 @@ function init(){
   const extraToggle=document.getElementById("extraToggle"), extraPanel=document.getElementById("extraPanel"), extraModal=document.getElementById("extraModal");
   const extraClose=document.getElementById("extraClose"), extraDone=document.getElementById("extraDone");
   const simOpen=document.getElementById("simOpen"), simModal=document.getElementById("simModal"), simClose=document.getElementById("simClose"), simRun=document.getElementById("simRun");
-  const tourOpen=document.getElementById("tourOpen"), tourModal=document.getElementById("tourModal"), tourClose=document.getElementById("tourClose"), tourRun=document.getElementById("tourRun");
+  const tourOpen=document.getElementById("tourOpen"), tourModal=document.getElementById("tourModal"), tourClose=document.getElementById("tourClose");
+  const tourRunAll=document.getElementById("tourRunAll"), tourRunKnown=document.getElementById("tourRunKnown");
   const extraChecks=["useVenue","useLineup","useRegion","useWorldCupForm"];
   const updateExtraState=()=>{
     const enabled=extraChecks.some(id=>document.getElementById(id)?.checked);
@@ -2218,7 +2224,7 @@ function init(){
     renderPredict();
     tourModal.hidden=false;
     document.body.classList.add("modal-open");
-    renderTournament();
+    renderTournament(true);
   };
   const closeTour=()=>{
     tourModal.hidden=true;
@@ -2234,7 +2240,8 @@ function init(){
   simModal.onclick=e=>{if(e.target===simModal)closeSim();};
   tourOpen.onclick=openTour;
   tourClose.onclick=closeTour;
-  tourRun.onclick=renderTournament;
+  tourRunAll.onclick=()=>renderTournament(false);
+  tourRunKnown.onclick=()=>renderTournament(true);
   tourModal.onclick=e=>{if(e.target===tourModal)closeTour();};
   if(document.addEventListener)document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){
