@@ -344,7 +344,7 @@
   <details>
     <summary>模型说明</summary>
     <div class="explain">
-      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。新增“近期/赛事权重实验”会用验证集选择出的轻量赛事更新权重重建赛前评级，但没有替换默认模型；时间衰减候选已测试，因验证指标变差暂不作为默认。阵容伤停/预计首发只在手动勾选额外信息时影响预期进球和 90 分钟比分矩阵；点球模式只影响平局后的晋级分配。历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
+      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。新增“近期/赛事权重实验”会用验证集选择出的轻量赛事更新权重重建赛前评级，但没有替换默认模型；时间衰减候选已测试，因验证指标变差暂不作为默认。洲际强度校准已改为历史赛果拟合的区域残差修正，仍只在手动勾选额外信息时生效。阵容伤停/预计首发只在手动勾选额外信息时影响预期进球和 90 分钟比分矩阵；点球模式只影响平局后的晋级分配。历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
     </div>
   </details>
   <details id="devDetails">
@@ -369,7 +369,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-21-temporal-lineup-exp";
+const APP_VERSION = "2026-06-21-fitted-region-exp";
 const DEV_KEY = "debug2026";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
@@ -1542,20 +1542,20 @@ function penaltyModeLabel(p){
 }
 const HOST_TEAMS = new Set(["USA","Canada","Mexico"]);
 const REGION_CALIBRATION = {
-  "Europe":0.035,
-  "Europe/Middle East":0.020,
-  "Latin America":0.030,
-  "North America":0.006,
-  "East Asia":-0.006,
-  "North Africa":-0.006,
-  "West Africa":-0.008,
-  "Central Africa":-0.016,
-  "Southern Africa":-0.018,
-  "Middle East":-0.022,
-  "Central Asia":-0.025,
-  "Oceania/Asia":-0.016,
-  "Oceania":-0.034,
-  "Caribbean":-0.038
+  "Caribbean":-0.0033,
+  "Central Africa":-0.0013,
+  "Central Asia":-0.0162,
+  "East Asia":-0.0170,
+  "Europe":0.0373,
+  "Europe/Middle East":0.0099,
+  "Latin America":0.0675,
+  "Middle East":-0.0347,
+  "North Africa":0.0067,
+  "North America":-0.0249,
+  "Oceania":-0.0153,
+  "Oceania/Asia":-0.0284,
+  "Southern Africa":-0.0020,
+  "West Africa":0.0217
 };
 function extraEnabled(){return document.getElementById("extraToggle")?.dataset.enabled==="1";}
 function checkVal(id){return !!document.getElementById(id)?.checked;}
