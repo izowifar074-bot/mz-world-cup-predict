@@ -196,6 +196,8 @@
         <div class="mode-row">
           <select id="modelChoice" class="model-choice" aria-label="预测方式选择">
             <option value="dc">默认即可</option>
+            <option value="dcRecent">近期/赛事权重实验</option>
+            <option value="fittedRecent">近期权重 Poisson 实验</option>
             <option value="dcNeutral">中性点球</option>
             <option value="dcHistoryPen">历史点球实验</option>
             <option value="fitted">全量 Poisson</option>
@@ -231,8 +233,20 @@
               </div>
             </div>
             <div class="extra-row">
-              <label class="check"><input type="checkbox" id="useLineup"> 阵容伤停手动修正</label>
+              <label class="check"><input type="checkbox" id="useLineup"> 阵容伤停 / 预计首发</label>
               <div class="mini">
+                <label>第一队预计首发
+                  <select id="aXiStrength"><option value="0">正常</option><option value="0.04">略弱</option><option value="0.08">明显弱</option><option value="0.12">轮换较多</option></select>
+                </label>
+                <label>第一队关键缺阵
+                  <select id="aKeyMissing"><option value="none">无</option><option value="gkcb">门将/中卫</option><option value="mid">中场核心</option><option value="fwd">主力前锋</option><option value="multi">多名主力</option></select>
+                </label>
+                <label>第二队预计首发
+                  <select id="bXiStrength"><option value="0">正常</option><option value="0.04">略弱</option><option value="0.08">明显弱</option><option value="0.12">轮换较多</option></select>
+                </label>
+                <label>第二队关键缺阵
+                  <select id="bKeyMissing"><option value="none">无</option><option value="gkcb">门将/中卫</option><option value="mid">中场核心</option><option value="fwd">主力前锋</option><option value="multi">多名主力</option></select>
+                </label>
                 <label>第一队进攻缺损
                   <select id="aAttackLoss"><option value="0">0%</option><option value="0.05">5%</option><option value="0.10">10%</option><option value="0.15">15%</option><option value="0.20">20%</option></select>
                 </label>
@@ -330,7 +344,7 @@
   <details>
     <summary>模型说明</summary>
     <div class="explain">
-      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。实验增强会改变预期进球和 90 分钟比分矩阵；点球模式只影响平局后的晋级分配。历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
+      默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。新增“近期/赛事权重实验”会用验证集选择出的轻量赛事更新权重重建赛前评级，但没有替换默认模型；时间衰减候选已测试，因验证指标变差暂不作为默认。阵容伤停/预计首发只在手动勾选额外信息时影响预期进球和 90 分钟比分矩阵；点球模式只影响平局后的晋级分配。历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
     </div>
   </details>
   <details id="devDetails">
@@ -355,7 +369,7 @@
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-20-dev-mode";
+const APP_VERSION = "2026-06-21-temporal-lineup-exp";
 const DEV_KEY = "debug2026";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
@@ -493,6 +507,8 @@ const PARAMS = {
   current:{name:"原始经验参数", alpha:Math.log(1.32), betaAD:1/38, betaElo:1/950, k:24, adK:0.35, minLambda:0.15, maxLambda:4.2, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9},
   fitted:{name:"全量拟合普通 Poisson", alpha:0.292669613963, betaAD:0.0227272727273, betaElo:0.00105263157895, k:26.0000000000, adK:0.280000000000, minLambda:0.0800000000000, maxLambda:4.00000000000, scoreMax:8.00000000000, rho:0.00000000000, penEloScale:520.000000000, penRatingScale:12.0000000000, hostCoef:0.180000000000, neutralCoef:0.00000000000, importanceCoef:0.0400000000000},
   dc:{name:"全量拟合 Dixon-Coles", alpha:0.292669613963, betaAD:0.0227272727273, betaElo:0.00105263157895, k:26.0000000000, adK:0.280000000000, minLambda:0.0800000000000, maxLambda:4.00000000000, scoreMax:8.00000000000, rho:-0.0300000000000, penEloScale:520.000000000, penRatingScale:12.0000000000, hostCoef:0.180000000000, neutralCoef:0.00000000000, importanceCoef:0.0400000000000},
+  dcRecent:{name:"近期/赛事权重实验 DC", alpha:0.292669613963, betaAD:0.0227272727273, betaElo:0.00105263157895, k:26.0000000000, adK:0.280000000000, minLambda:0.0800000000000, maxLambda:4.00000000000, scoreMax:8.00000000000, rho:-0.0300000000000, penEloScale:520.000000000, penRatingScale:12.0000000000, hostCoef:0.180000000000, neutralCoef:0.00000000000, importanceCoef:0.0400000000000, temporal:false, idleHalfLife:0, meanElo:1500, meanAD:72, eventWeights:{friendly:0.9,other:0.96,nations:0.96,qualifier:1,wcq:1.02,continental:1.05,worldcup:1.1}},
+  fittedRecent:{name:"近期权重普通 Poisson 实验", alpha:0.292669613963, betaAD:0.0227272727273, betaElo:0.00105263157895, k:26.0000000000, adK:0.280000000000, minLambda:0.0800000000000, maxLambda:4.00000000000, scoreMax:8.00000000000, rho:0.00000000000, penEloScale:520.000000000, penRatingScale:12.0000000000, hostCoef:0.180000000000, neutralCoef:0.00000000000, importanceCoef:0.0400000000000, temporal:false, idleHalfLife:0, meanElo:1500, meanAD:72, eventWeights:{friendly:0.9,other:0.96,nations:0.96,qualifier:1,wcq:1.02,continental:1.05,worldcup:1.1}},
   elo:{name:"Elo-only", alpha:Math.log(1.28), betaAD:0, betaElo:1/850, k:24, adK:0, minLambda:0.08, maxLambda:3.8, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9},
   ad:{name:"Attack/Defense-only", alpha:Math.log(1.28), betaAD:1/38, betaElo:0, k:0, adK:0.35, minLambda:0.08, maxLambda:3.8, scoreMax:8, rho:0, penEloScale:420, penRatingScale:9}
 };
@@ -1412,6 +1428,8 @@ const PENALTY_HISTORY = {
   }
 };
 
+const RECENT_MODEL_SNAPSHOT = {"generatedAt":"2026-06-20T18:19:49.171Z","latestDate":"2026-06-10","source":"worldcup_temporal_fit_replay.mjs","params":{"name":"近期加权 Dixon-Coles","alpha":0.292669613963,"betaAD":0.0227272727273,"betaElo":0.00105263157895,"k":26,"adK":0.28,"minLambda":0.08,"maxLambda":4,"scoreMax":8,"rho":-0.03,"penEloScale":520,"penRatingScale":12,"hostCoef":0.18,"neutralCoef":0,"importanceCoef":0.04,"temporal":false,"idleHalfLife":0,"meanElo":1500,"meanAD":72,"eventWeights":{"friendly":0.9,"other":0.96,"nations":0.96,"qualifier":1,"wcq":1.02,"continental":1.05,"worldcup":1.1},"profile":"tiny"},"ratings":{"Spain":{"c":"西班牙","region":"Europe","elo":2019.417,"attack":96.716,"defense":94.078,"penalty":85,"lastDate":null},"Argentina":{"c":"阿根廷","region":"Latin America","elo":2019.488,"attack":90.056,"defense":97.834,"penalty":84.3,"lastDate":null},"France":{"c":"法国","region":"Europe","elo":1968.533,"attack":88.73,"defense":93.459,"penalty":82.7,"lastDate":null},"England":{"c":"英格兰","region":"Europe","elo":1928.048,"attack":89.325,"defense":97.514,"penalty":79.6,"lastDate":null},"Portugal":{"c":"葡萄牙","region":"Europe","elo":1927.55,"attack":93.078,"defense":91.895,"penalty":77.8,"lastDate":null},"Colombia":{"c":"哥伦比亚","region":"Latin America","elo":1907.57,"attack":84.621,"defense":96.514,"penalty":77.5,"lastDate":null},"Brazil":{"c":"巴西","region":"Latin America","elo":1932.102,"attack":92.954,"defense":97.842,"penalty":77.3,"lastDate":null},"Netherlands":{"c":"荷兰","region":"Europe","elo":1897.831,"attack":93.958,"defense":89.041,"penalty":75.5,"lastDate":null},"Germany":{"c":"德国","region":"Europe","elo":1916.953,"attack":97.694,"defense":82.416,"penalty":75.2,"lastDate":null},"Norway":{"c":"挪威","region":"Europe","elo":1805.27,"attack":86.041,"defense":85.25,"penalty":74.7,"lastDate":null},"Croatia":{"c":"克罗地亚","region":"Europe","elo":1863.713,"attack":84.688,"defense":86.852,"penalty":73.9,"lastDate":null},"Japan":{"c":"日本","region":"East Asia","elo":1889.14,"attack":93.818,"defense":90.463,"penalty":73.8,"lastDate":null},"Ecuador":{"c":"厄瓜多尔","region":"Latin America","elo":1864.895,"attack":80.671,"defense":92.022,"penalty":72.7,"lastDate":null},"Mexico":{"c":"墨西哥","region":"North America","elo":1850.886,"attack":83.858,"defense":90.959,"penalty":72.3,"lastDate":null},"Belgium":{"c":"比利时","region":"Europe","elo":1865.431,"attack":93.157,"defense":86.035,"penalty":72.2,"lastDate":null},"Uruguay":{"c":"乌拉圭","region":"Latin America","elo":1838.53,"attack":83.632,"defense":92.728,"penalty":71.7,"lastDate":null},"Switzerland":{"c":"瑞士","region":"Europe","elo":1826.001,"attack":85.456,"defense":86.08,"penalty":71.5,"lastDate":null},"Türkiye":{"c":"土耳其","region":"Europe/Middle East","elo":1832.658,"attack":84.035,"defense":80.698,"penalty":70.6,"lastDate":null},"Morocco":{"c":"摩洛哥","region":"North Africa","elo":1883.385,"attack":79.756,"defense":97.526,"penalty":70.2,"lastDate":null},"Australia":{"c":"澳大利亚","region":"Oceania/Asia","elo":1788.36,"attack":87.879,"defense":91.487,"penalty":70.1,"lastDate":null},"Senegal":{"c":"塞内加尔","region":"West Africa","elo":1804.469,"attack":79.479,"defense":91.737,"penalty":70.1,"lastDate":null},"Austria":{"c":"奥地利","region":"Europe","elo":1807.249,"attack":83.787,"defense":82.112,"penalty":69.7,"lastDate":null},"Scotland":{"c":"苏格兰","region":"Europe","elo":1729.066,"attack":76.083,"defense":82.449,"penalty":67.8,"lastDate":null},"Korea Republic":{"c":"韩国","region":"East Asia","elo":1811.365,"attack":83.944,"defense":89.31,"penalty":67.4,"lastDate":null},"Paraguay":{"c":"巴拉圭","region":"Latin America","elo":1768.676,"attack":75.204,"defense":89.295,"penalty":67.1,"lastDate":null},"USA":{"c":"美国","region":"North America","elo":1795.329,"attack":86.468,"defense":83.598,"penalty":67.1,"lastDate":null},"Algeria":{"c":"阿尔及利亚","region":"North Africa","elo":1806.614,"attack":86.523,"defense":85.341,"penalty":66.7,"lastDate":null},"Canada":{"c":"加拿大","region":"North America","elo":1789.569,"attack":83.225,"defense":88.226,"penalty":66.4,"lastDate":null},"IR Iran":{"c":"伊朗","region":"Middle East","elo":1817.389,"attack":85.447,"defense":94.75,"penalty":65.9,"lastDate":null},"Sweden":{"c":"瑞典","region":"Europe","elo":1725.597,"attack":83.704,"defense":83.613,"penalty":65.8,"lastDate":null},"Panama":{"c":"巴拿马","region":"North America","elo":1716.596,"attack":79.257,"defense":80.859,"penalty":64.5,"lastDate":null},"Uzbekistan":{"c":"乌兹别克斯坦","region":"Central Asia","elo":1738.865,"attack":80.386,"defense":87.169,"penalty":63.7,"lastDate":null},"Czechia":{"c":"捷克","region":"Europe","elo":1740.952,"attack":82.569,"defense":82.289,"penalty":63.6,"lastDate":null},"Egypt":{"c":"埃及","region":"North Africa","elo":1740.526,"attack":76.198,"defense":89.434,"penalty":63.5,"lastDate":null},"Jordan":{"c":"约旦","region":"Middle East","elo":1670.237,"attack":78.819,"defense":84.913,"penalty":62,"lastDate":null},"Congo DR":{"c":"刚果（金）","region":"Central Africa","elo":1657.022,"attack":74.85,"defense":85.094,"penalty":60.5,"lastDate":null},"Bosnia And Herzegovina":{"c":"波黑","region":"Europe","elo":1613.422,"attack":75.466,"defense":78.212,"penalty":58.7,"lastDate":null},"Cabo Verde":{"c":"佛得角","region":"West Africa","elo":1605.125,"attack":69.363,"defense":80.257,"penalty":58.2,"lastDate":null},"Saudi Arabia":{"c":"沙特","region":"Middle East","elo":1655.615,"attack":74.271,"defense":86.656,"penalty":57.7,"lastDate":null},"Iraq":{"c":"伊拉克","region":"Middle East","elo":1695.278,"attack":72.298,"defense":89.934,"penalty":57.4,"lastDate":null},"Tunisia":{"c":"突尼斯","region":"North Africa","elo":1677.431,"attack":74.503,"defense":89.151,"penalty":57.1,"lastDate":null},"New Zealand":{"c":"新西兰","region":"Oceania","elo":1624.207,"attack":87.172,"defense":87.23,"penalty":56.7,"lastDate":null},"Haiti":{"c":"海地","region":"Caribbean","elo":1597.728,"attack":85.403,"defense":78.761,"penalty":54.6,"lastDate":null},"South Africa":{"c":"南非","region":"Southern Africa","elo":1636.276,"attack":70.096,"defense":86.223,"penalty":53.3,"lastDate":null},"Ghana":{"c":"加纳","region":"West Africa","elo":1571.049,"attack":74.695,"defense":86.193,"penalty":53.2,"lastDate":null},"Côte D'Ivoire":{"c":"科特迪瓦","region":"West Africa","elo":1747.475,"attack":80.372,"defense":87.424,"penalty":52.7,"lastDate":null},"Curaçao":{"c":"库拉索","region":"Caribbean","elo":1516.939,"attack":77.572,"defense":75.182,"penalty":52.7,"lastDate":null},"Qatar":{"c":"卡塔尔","region":"Middle East","elo":1594.041,"attack":77.667,"defense":76.304,"penalty":50,"lastDate":null}}};
+
 let historicalMatches = null;
 let lastReports = null;
 
@@ -1464,6 +1482,31 @@ function ensureTeam(state,id){
 }
 function expectedFromElo(a,b){return 1/(1+Math.pow(10,(b-a)/400));}
 function actual(gf,ga){return gf>ga?1:(gf<ga?0:0.5);}
+function daysBetweenDates(a,b){return Math.max(0,(new Date(b)-new Date(a))/86400000);}
+function eventUpdateWeight(p,cat){
+  if(!p.eventWeights) return 1;
+  return p.eventWeights[cat] ?? p.eventWeights.other ?? 1;
+}
+function applyTemporalDecay(team,date,p){
+  if(!p.temporal||!date) return;
+  if(!team.lastDate){team.lastDate=date;return;}
+  const d=daysBetweenDates(team.lastDate,date);
+  if(d<=0){team.lastDate=date;return;}
+  const keep=Math.pow(0.5,d/(p.idleHalfLife||730));
+  const meanElo=p.meanElo??1500, meanAD=p.meanAD??72;
+  team.elo=meanElo+(team.elo-meanElo)*keep;
+  team.attack=meanAD+(team.attack-meanAD)*keep;
+  team.defense=meanAD+(team.defense-meanAD)*keep;
+  team.lastDate=date;
+}
+function applyPredictionDecay(a,b,p,date){
+  applyTemporalDecay(a,date,p);
+  applyTemporalDecay(b,date,p);
+}
+function currentPredictionDate(){
+  const dates=activeResults().map(m=>m.date).sort();
+  return dates.at(-1)||new Date().toISOString().slice(0,10);
+}
 function lambdas(a,b,p,opts={}){
   const hostA=opts.hostA?1:0, hostB=opts.hostB?1:0, neutral=opts.neutral?1:0, importance=opts.importance||0;
   const hostCoef=p.hostCoef||0, neutralCoef=p.neutralCoef||0, importanceCoef=p.importanceCoef||0;
@@ -1525,6 +1568,10 @@ function getExtraConfig(){
     useVenue:enabled&&checkVal("useVenue"),
     venueMode:selectVal("venueMode","auto"),
     useLineup:enabled&&checkVal("useLineup"),
+    aXiStrength:pctVal("aXiStrength"),
+    bXiStrength:pctVal("bXiStrength"),
+    aKeyMissing:selectVal("aKeyMissing","none"),
+    bKeyMissing:selectVal("bKeyMissing","none"),
     aAttackLoss:pctVal("aAttackLoss"),
     aDefenseLoss:pctVal("aDefenseLoss"),
     bAttackLoss:pctVal("bAttackLoss"),
@@ -1536,10 +1583,30 @@ function getExtraConfig(){
 }
 function regionScore(team){return REGION_CALIBRATION[team.region] ?? 0;}
 function lossText(v){return `${Math.round(v*100)}%`;}
+function keyMissingLoss(kind){
+  const map={
+    none:{attack:0,defense:0},
+    gkcb:{attack:0,defense:0.10},
+    mid:{attack:0.05,defense:0.04},
+    fwd:{attack:0.09,defense:0},
+    multi:{attack:0.10,defense:0.10}
+  };
+  return map[kind]||map.none;
+}
+function lineupLoss(extra,side){
+  const xi=side==="a"?extra.aXiStrength:extra.bXiStrength;
+  const key=keyMissingLoss(side==="a"?extra.aKeyMissing:extra.bKeyMissing);
+  const manualAttack=side==="a"?extra.aAttackLoss:extra.bAttackLoss;
+  const manualDefense=side==="a"?extra.aDefenseLoss:extra.bDefenseLoss;
+  return {
+    attack:clamp((xi||0)+key.attack+(manualAttack||0),0,0.30),
+    defense:clamp((xi||0)+key.defense+(manualDefense||0),0,0.30)
+  };
+}
 function applyWorldCupFormBoost(state,p,extra){
   if(!extra.enabled||!extra.useWorldCupForm) return state;
   const mult={light:0.25,medium:0.45,strong:0.75}[extra.worldCupWeight] ?? 0.45;
-  activeResults().forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,p,{neutral:true,importance:1,updateWeight:mult}));
+  activeResults().forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,p,{date:m.date,neutral:true,importance:1,cat:"worldcup",updateWeight:mult}));
   return state;
 }
 function buildPredictionOptions(a,b,p,extra){
@@ -1556,14 +1623,15 @@ function buildPredictionOptions(a,b,p,extra){
     else {opts.neutral=true;opts.applied.push("中立场");}
   }
   if(extra.useLineup){
-    opts.lambdaLogA += Math.log(clamp(1-extra.aAttackLoss,0.72,1)) + Math.log(1+extra.bDefenseLoss*0.9);
-    opts.lambdaLogB += Math.log(clamp(1-extra.bAttackLoss,0.72,1)) + Math.log(1+extra.aDefenseLoss*0.9);
+    const la=lineupLoss(extra,"a"), lb=lineupLoss(extra,"b");
+    opts.lambdaLogA += Math.log(clamp(1-la.attack,0.70,1)) + Math.log(1+lb.defense*0.9);
+    opts.lambdaLogB += Math.log(clamp(1-lb.attack,0.70,1)) + Math.log(1+la.defense*0.9);
     const notes=[];
-    if(extra.aAttackLoss) notes.push(`${a.c}进攻-${lossText(extra.aAttackLoss)}`);
-    if(extra.aDefenseLoss) notes.push(`${a.c}防守-${lossText(extra.aDefenseLoss)}`);
-    if(extra.bAttackLoss) notes.push(`${b.c}进攻-${lossText(extra.bAttackLoss)}`);
-    if(extra.bDefenseLoss) notes.push(`${b.c}防守-${lossText(extra.bDefenseLoss)}`);
-    opts.applied.push(notes.length?`伤停：${notes.join("，")}`:"伤停：未填缺损");
+    if(la.attack) notes.push(`${a.c}进攻-${lossText(la.attack)}`);
+    if(la.defense) notes.push(`${a.c}防守-${lossText(la.defense)}`);
+    if(lb.attack) notes.push(`${b.c}进攻-${lossText(lb.attack)}`);
+    if(lb.defense) notes.push(`${b.c}防守-${lossText(lb.defense)}`);
+    opts.applied.push(notes.length?`阵容：${notes.join("，")}`:"阵容：未填缺损");
   }
   if(extra.useRegion){
     const delta=clamp(regionScore(a)-regionScore(b),-0.07,0.07);
@@ -1618,9 +1686,10 @@ function scoreMatrix(a,b,p,opts={}){
 }
 function updateState(state,aId,bId,gf,ga,p,opts={}){
   const A=ensureTeam(state,aId), B=ensureTeam(state,bId);
+  applyTemporalDecay(A,opts.date,p); applyTemporalDecay(B,opts.date,p);
   const pred=scoreMatrix(A,B,p,opts);
   const expA=expectedFromElo(A.elo,B.elo), actA=actual(gf,ga);
-  const weight=opts.updateWeight||1;
+  const weight=opts.updateWeight ?? eventUpdateWeight(p,opts.cat||"other");
   const dE=(p.k||0)*weight*(actA-expA);
   A.elo+=dE; B.elo-=dE;
   const resA=gf-pred.la, resB=ga-pred.lb, k=(p.adK||0)*weight;
@@ -1631,7 +1700,7 @@ function updateState(state,aId,bId,gf,ga,p,opts={}){
 }
 function currentRatings(params){
   const state=createStateFromBase();
-  activeResults().forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
+  activeResults().forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{date:m.date,neutral:true,importance:1,cat:"worldcup"}));
   return state;
 }
 function stateFromSnapshot(params){
@@ -1639,8 +1708,21 @@ function stateFromSnapshot(params){
   const state={};
   Object.entries(MODEL_SNAPSHOT.ratings).forEach(([id,r])=>state[id]={id,c:r.c,region:r.region||"Unknown",elo:r.elo,attack:r.attack,defense:r.defense,penalty:r.penalty});
   addExhibitionTeams(state);
-  activeResults().filter(m=>m.date>MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
+  activeResults().filter(m=>m.date>MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{date:m.date,neutral:true,importance:1,cat:"worldcup"}));
   return state;
+}
+function stateFromRecentSnapshot(params){
+  if(!RECENT_MODEL_SNAPSHOT||!RECENT_MODEL_SNAPSHOT.ratings) return null;
+  const state={};
+  Object.entries(RECENT_MODEL_SNAPSHOT.ratings).forEach(([id,r])=>state[id]={id,c:r.c,region:r.region||"Unknown",elo:r.elo,attack:r.attack,defense:r.defense,penalty:r.penalty,lastDate:r.lastDate||RECENT_MODEL_SNAPSHOT.latestDate});
+  addExhibitionTeams(state);
+  activeResults().filter(m=>m.date>RECENT_MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{date:m.date,neutral:true,importance:1,cat:"worldcup"}));
+  return state;
+}
+function modelState(modelKey,p){
+  if(modelKey==="dcRecent"||modelKey==="fittedRecent") return stateFromRecentSnapshot(p)||stateFromSnapshot(p)||currentRatings(p);
+  if(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen") return stateFromSnapshot(p)||currentRatings(p);
+  return currentRatings(p);
 }
 function historicalCurrentRatings(params, latestDate){
   const state=createNeutralHistoryState();
@@ -1648,7 +1730,7 @@ function historicalCurrentRatings(params, latestDate){
   for(const m of historicalMatches){
     if(m.date>latestDate) break;
     const cat=classifyTournament(m.tournament);
-    updateState(state,m.home,m.away,m.hs,m.as,params,{neutral:m.neutral,importance:importanceOf(cat)});
+    updateState(state,m.home,m.away,m.hs,m.as,params,{date:m.date,neutral:m.neutral,importance:importanceOf(cat),cat});
   }
   return state;
 }
@@ -1719,12 +1801,13 @@ function renderPredict(ctx=null){
   if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
   const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
   const extra=getExtraConfig();
-  let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  let state=modelState(modelKey,p);
   state=applyWorldCupFormBoost(state,p,extra);
   state=applyPenaltyMode(state,modelKey);
   let a=cloneTeam(state[document.getElementById("teamA").value]), b=cloneTeam(state[document.getElementById("teamB").value]);
   const out=document.getElementById("result");
   if(!a||!b||a.id===b.id){out.innerHTML='<p class="note">请选择两支不同球队。</p>';return;}
+  applyPredictionDecay(a,b,p,currentPredictionDate());
   if(ctx){
     const histState=historicalCurrentRatings(p,ctx.latestDate);
     a=cloneTeam(histState[a.id]||a); b=cloneTeam(histState[b.id]||b);
@@ -1757,11 +1840,12 @@ function currentPredictionForSimulation(extraOverride=null){
   if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
   const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
   const extra=extraOverride||getExtraConfig();
-  let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  let state=modelState(modelKey,p);
   state=applyWorldCupFormBoost(state,p,extra);
   state=applyPenaltyMode(state,modelKey);
   const a=cloneTeam(state[document.getElementById("teamA").value]), b=cloneTeam(state[document.getElementById("teamB").value]);
   if(!a||!b||a.id===b.id) return null;
+  applyPredictionDecay(a,b,p,currentPredictionDate());
   const predictionOpts=buildPredictionOptions(a,b,p,extra);
   const r=scoreMatrix(a,b,p,predictionOpts);
   return {a,b,p,r,extra,predictionOpts,modelKey};
@@ -1863,7 +1947,7 @@ function tournamentContext(extraOverride=null){
   if(modelSelect&&modelSelect.value!==modelKey) modelSelect.value=modelKey;
   const p=deepParams(PARAMS[modelKey]||PARAMS.dc);
   const extra=extraOverride||getExtraConfig();
-  let state=(modelKey==="dc"||modelKey==="fitted"||modelKey==="dcNeutral"||modelKey==="dcHistoryPen")?(stateFromSnapshot(p)||currentRatings(p)):currentRatings(p);
+  let state=modelState(modelKey,p);
   state=applyWorldCupFormBoost(state,p,extra);
   state=applyPenaltyMode(state,modelKey);
   return {p,extra,state,modelKey};
@@ -2126,7 +2210,7 @@ function runOneBacktest(modelKey,params,matches,start,end,filter,limit){
     const cat=classifyTournament(m.tournament);
     const h=resolveName(m.home), a=resolveName(m.away);
     const H=ensureTeam(state,h), A=ensureTeam(state,a);
-    const opts={neutral:m.neutral,importance:importanceOf(cat)};
+    const opts={date:m.date,neutral:m.neutral,importance:importanceOf(cat),cat};
     if(shouldEval(m,start,end,filter)&&tested<limit){
       const pred=scoreMatrix(H,A,params,opts);
       records.push({date:m.date,hs:m.hs,as:m.as,pred,cat,homeWin:m.hs>m.as,draw:m.hs===m.as,awayWin:m.hs<m.as,eloDiff:H.elo-A.elo,
@@ -2141,7 +2225,7 @@ function runBacktestAll(){
   if(!historicalMatches) throw new Error("请先加载历史数据。");
   const start=document.getElementById("btStart").value.trim(), end=document.getElementById("btEnd").value.trim();
   const filter=document.getElementById("btFilter").value, limit=+document.getElementById("btLimit").value||9000;
-  const models=["elo","ad","current","fitted","dc"];
+  const models=["elo","ad","current","fitted","dc","fittedRecent","dcRecent"];
   lastReports=models.map(k=>runOneBacktest(k,deepParams(PARAMS[k]),historicalMatches,start,end,filter,limit));
   renderReports();
   document.getElementById("btStatus").textContent=`完成：${start} 至 ${end}，筛选 ${filter}，每模型 ${lastReports[0].records.length.toLocaleString()} 场。`;
