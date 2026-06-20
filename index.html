@@ -143,6 +143,15 @@
   details{margin-top:24px;color:var(--red);font-size:14px}
   summary{cursor:pointer;font-weight:680}
   .explain{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.75}
+  .dev-box{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:#fffaf5;padding:12px;color:var(--ink)}
+  .dev-login{display:grid;grid-template-columns:minmax(0,1fr) 88px;gap:8px}
+  .dev-login input{min-height:42px;padding:9px 11px;font-size:13px}
+  .dev-login button{font-size:13px;padding:9px 10px}
+  .dev-panel{display:grid;gap:10px}
+  .dev-panel[hidden]{display:none}
+  .dev-row{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:8px 10px;font-size:12px;color:var(--muted)}
+  .dev-row b{color:var(--ink)}
+  .dev-error{color:var(--red);font-size:12px;margin-top:8px}
   footer{margin-top:34px;text-align:center;color:#98a1aa;font-size:12px}
   @media(min-width:820px){
     .wrap{max-width:1000px;padding:56px 40px 50px}
@@ -169,6 +178,7 @@
     .tour-actions{grid-template-columns:1fr}
     .sim-meta{grid-template-columns:1fr}
     .sim-score{font-size:25px}
+    .dev-login{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -323,12 +333,30 @@
       默认使用全量拟合 Dixon-Coles：Elo + Attack/Defense + Poisson 比分矩阵，并对 0-0、1-0、0-1、1-1 做低比分修正。实验增强会改变预期进球和 90 分钟比分矩阵；点球模式只影响平局后的晋级分配。历史点球使用 678 场国家队点球大战滚动拟合，不使用原人工点球先验。页面内嵌 2026 已录入赛果，市场赔率和投票不进入模型。
     </div>
   </details>
+  <details id="devDetails">
+    <summary>开发者模式</summary>
+    <div class="dev-box">
+      <div id="devLogin" class="dev-login">
+        <input id="devKey" type="password" inputmode="text" autocomplete="off" placeholder="输入开发者秘钥">
+        <button class="secondary" id="devUnlock" type="button">确认</button>
+      </div>
+      <div id="devError" class="dev-error"></div>
+      <div id="devPanel" class="dev-panel" hidden>
+        <label class="check"><input type="checkbox" id="debugExcludeWorldCup"> 调试时去除本届世界杯赛果</label>
+        <div class="dev-row"><span>已录入赛果</span><b id="debugRecordedCount">-</b></div>
+        <div class="dev-row"><span>当前入模赛果</span><b id="debugActiveCount">-</b></div>
+        <div class="dev-row"><span>调试状态</span><b id="debugModeText">-</b></div>
+        <div class="note">切换后会立即重算当前预测和全局模拟；不修改原始赛果，只改变本地浏览器本次调试状态。</div>
+      </div>
+    </div>
+  </details>
   <footer id="foot"></footer>
 </div>
 
 <script>
 const DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv";
-const APP_VERSION = "2026-06-20-results-refit";
+const APP_VERSION = "2026-06-20-dev-mode";
+const DEV_KEY = "debug2026";
 const EPS = 1e-12;
 if(typeof window!=="undefined"){
   window.addEventListener("error",ev=>{
@@ -422,6 +450,19 @@ const RESULTS = [
 {date:"2026-06-19", a:"Türkiye", b:"Paraguay", gf:0, ga:1},
 {date:"2026-06-20", a:"Brazil", b:"Haiti", gf:3, ga:0}
 ];
+
+function storageGet(k){
+  try{return localStorage&&localStorage.getItem?localStorage.getItem(k):null;}catch{return null;}
+}
+function storageSet(k,v){
+  try{if(localStorage&&localStorage.setItem)localStorage.setItem(k,v);}catch{}
+}
+function debugExcludesWorldCup(){
+  return storageGet("wc_debug_exclude_worldcup")==="1";
+}
+function activeResults(){
+  return debugExcludesWorldCup()?[]:RESULTS;
+}
 
 const EXHIBITION_TEAMS = {
   "China PR":{
@@ -1498,7 +1539,7 @@ function lossText(v){return `${Math.round(v*100)}%`;}
 function applyWorldCupFormBoost(state,p,extra){
   if(!extra.enabled||!extra.useWorldCupForm) return state;
   const mult={light:0.25,medium:0.45,strong:0.75}[extra.worldCupWeight] ?? 0.45;
-  RESULTS.forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,p,{neutral:true,importance:1,updateWeight:mult}));
+  activeResults().forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,p,{neutral:true,importance:1,updateWeight:mult}));
   return state;
 }
 function buildPredictionOptions(a,b,p,extra){
@@ -1590,7 +1631,7 @@ function updateState(state,aId,bId,gf,ga,p,opts={}){
 }
 function currentRatings(params){
   const state=createStateFromBase();
-  RESULTS.forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
+  activeResults().forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
   return state;
 }
 function stateFromSnapshot(params){
@@ -1598,7 +1639,7 @@ function stateFromSnapshot(params){
   const state={};
   Object.entries(MODEL_SNAPSHOT.ratings).forEach(([id,r])=>state[id]={id,c:r.c,region:r.region||"Unknown",elo:r.elo,attack:r.attack,defense:r.defense,penalty:r.penalty});
   addExhibitionTeams(state);
-  RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
+  activeResults().filter(m=>m.date>MODEL_SNAPSHOT.latestDate).forEach(m=>updateState(state,m.a,m.b,m.gf,m.ga,params,{neutral:true,importance:1}));
   return state;
 }
 function historicalCurrentRatings(params, latestDate){
@@ -1844,7 +1885,7 @@ function buildTournamentOptions(a,b,p,extra){
 }
 function actualResultFor(a,b){
   const ra=resolveName(a), rb=resolveName(b);
-  const m=RESULTS.find(x=>(resolveName(x.a)===ra&&resolveName(x.b)===rb)||(resolveName(x.a)===rb&&resolveName(x.b)===ra));
+  const m=activeResults().find(x=>(resolveName(x.a)===ra&&resolveName(x.b)===rb)||(resolveName(x.a)===rb&&resolveName(x.b)===ra));
   if(!m) return null;
   return resolveName(m.a)===ra?{i:m.gf,j:m.ga,actual:true}:{i:m.ga,j:m.gf,actual:true};
 }
@@ -1981,7 +2022,7 @@ function renderTournament(fixKnownResults=true){
     networkColumn("32强","r32",[76,78,79,80,86,88,85,87],m,"right")
   ].join("");
   const groups=Object.entries(sim.groups).map(([g,x])=>groupCard(g,x)).join("");
-  const modeText=fixKnownResults?`固定当前 ${RESULTS.length} 场已赛比分，只模拟剩余比赛`:"从小组赛第一场开始模拟整届，不锁定已赛比分";
+  const modeText=fixKnownResults?`固定当前 ${activeResults().length} 场入模已赛比分，只模拟剩余比赛`:"从小组赛第一场开始模拟整届，不锁定已赛比分";
   out.innerHTML=`<div class="network-scroll"><div class="network">${bracket}</div></div>
     <div class="note">模式：${modeText}。横向滑动可查看完整网络。</div>
     <details class="group-drawer"><summary>查看本次模拟小组排名</summary><div class="group-grid">${groups}</div></details>`;
@@ -2180,6 +2221,28 @@ function renderParams(){
   const rows=Object.entries(PARAMS).map(([k,p])=>[p.name,k,Math.exp(p.alpha).toFixed(3),p.betaAD.toFixed(6),p.betaElo.toFixed(6),p.k,p.adK,p.minLambda,p.maxLambda,p.scoreMax,p.rho,p.penEloScale,p.penRatingScale]);
   document.getElementById("paramsOut").innerHTML=table(["模型","key","base_goal_rate","betaAD","betaElo","Elo K","AD K","xG下限","xG上限","比分截断","DC rho","点球Elo尺度","点球评级尺度"],rows);
 }
+function renderFooter(){
+  const dates=RESULTS.map(m=>m.date).sort();
+  const postSnapshot=RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate);
+  const latestPost=postSnapshot.map(m=>m.date).sort().at(-1)||dates.at(-1)||"-";
+  const debugNote=debugExcludesWorldCup()?" · 调试：本届赛果已排除":"";
+  document.getElementById("foot").innerHTML=`数据截至 ${latestPost} · 已录入 ${RESULTS.length} 场结果${debugNote} · 版本 ${APP_VERSION}`;
+}
+function updateDebugPanel(){
+  const exclude=document.getElementById("debugExcludeWorldCup");
+  if(exclude) exclude.checked=debugExcludesWorldCup();
+  const recorded=document.getElementById("debugRecordedCount"), active=document.getElementById("debugActiveCount"), mode=document.getElementById("debugModeText");
+  if(recorded) recorded.textContent=`${RESULTS.length} 场`;
+  if(active) active.textContent=`${activeResults().length} 场`;
+  if(mode) mode.textContent=debugExcludesWorldCup()?"已排除本届世界杯赛果":"正常使用已录入赛果";
+  renderFooter();
+}
+function applyDebugMode(){
+  updateDebugPanel();
+  renderPredict();
+  const tourModal=document.getElementById("tourModal");
+  if(tourModal&&!tourModal.hidden) renderTournament(true);
+}
 function init(){
   try{localStorage.removeItem("wc_model_params");}catch{}
   const R=stateFromSnapshot(PARAMS.dc)||currentRatings(PARAMS.dc);
@@ -2197,6 +2260,7 @@ function init(){
   const simOpen=document.getElementById("simOpen"), simModal=document.getElementById("simModal"), simClose=document.getElementById("simClose"), simRun=document.getElementById("simRun");
   const tourOpen=document.getElementById("tourOpen"), tourModal=document.getElementById("tourModal"), tourClose=document.getElementById("tourClose");
   const tourRunAll=document.getElementById("tourRunAll"), tourRunKnown=document.getElementById("tourRunKnown");
+  const devKey=document.getElementById("devKey"), devUnlock=document.getElementById("devUnlock"), devLogin=document.getElementById("devLogin"), devPanel=document.getElementById("devPanel"), devError=document.getElementById("devError"), debugExclude=document.getElementById("debugExcludeWorldCup");
   const extraChecks=["useVenue","useLineup","useRegion","useWorldCupForm"];
   const updateExtraState=()=>{
     const enabled=extraChecks.some(id=>document.getElementById(id)?.checked);
@@ -2247,6 +2311,27 @@ function init(){
   tourRunAll.onclick=()=>renderTournament(false);
   tourRunKnown.onclick=()=>renderTournament(true);
   tourModal.onclick=e=>{if(e.target===tourModal)closeTour();};
+  const unlockDev=()=>{
+    if((devKey.value||"").trim()!==DEV_KEY){
+      devError.textContent="秘钥错误";
+      return;
+    }
+    storageSet("wc_dev_unlocked","1");
+    devError.textContent="";
+    devLogin.hidden=true;
+    devPanel.hidden=false;
+    updateDebugPanel();
+  };
+  devUnlock.onclick=unlockDev;
+  devKey.onkeydown=e=>{if(e.key==="Enter")unlockDev();};
+  debugExclude.onchange=()=>{
+    storageSet("wc_debug_exclude_worldcup",debugExclude.checked?"1":"0");
+    applyDebugMode();
+  };
+  if(storageGet("wc_dev_unlocked")==="1"){
+    devLogin.hidden=true;
+    devPanel.hidden=false;
+  }
   if(document.addEventListener)document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){
       if(!extraModal.hidden)closeExtra();
@@ -2259,10 +2344,7 @@ function init(){
   A.onchange=()=>renderPredict();
   B.onchange=()=>renderPredict();
   document.getElementById("modelChoice").onchange=()=>renderPredict();
-  const dates=RESULTS.map(m=>m.date).sort();
-  const postSnapshot=RESULTS.filter(m=>m.date>MODEL_SNAPSHOT.latestDate);
-  const latestPost=postSnapshot.map(m=>m.date).sort().at(-1)||"-";
-  document.getElementById("foot").innerHTML=`数据截至 ${latestPost} · 已录入 ${RESULTS.length} 场结果 · 版本 ${APP_VERSION}`;
+  updateDebugPanel();
 }
 init();
 </script>
